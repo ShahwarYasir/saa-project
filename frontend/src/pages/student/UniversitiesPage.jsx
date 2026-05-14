@@ -21,7 +21,7 @@ export default function UniversitiesPage() {
       const res = await getUniversities(f);
       setUniversities(res.data);
       const saved = new Set();
-      res.data.forEach(u => { if (isInShortlist('university', u.id)) saved.add(u.id); });
+      res.data.forEach(u => { if (u.is_shortlisted || isInShortlist('university', u.id)) saved.add(u.id); });
       setSavedIds(saved);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }

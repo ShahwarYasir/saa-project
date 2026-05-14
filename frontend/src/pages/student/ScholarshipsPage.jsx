@@ -21,7 +21,7 @@ export default function ScholarshipsPage() {
       const res = await getScholarships(f);
       setScholarships(res.data);
       const saved = new Set();
-      res.data.forEach(s => { if (isInShortlist('scholarship', s.id)) saved.add(s.id); });
+      res.data.forEach(s => { if (s.is_shortlisted || isInShortlist('scholarship', s.id)) saved.add(s.id); });
       setSavedIds(saved);
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
