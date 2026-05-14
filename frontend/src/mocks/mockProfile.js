@@ -1,0 +1,20 @@
+export const mockProfile = {
+  id: 1,
+  full_name: 'Hasana Zahid',
+  email: 'student@test.com',
+  phone: '+92 300 1234567',
+  nationality: 'Pakistan',
+  current_country: 'Pakistan',
+  current_qualification: "Bachelor's Degree",
+  gpa: 3.45,
+  field_of_interest: 'Artificial Intelligence',
+  degree_level: 'Master',
+  preferred_countries: ['Germany', 'Canada', 'United Kingdom'],
+  annual_budget_usd: 12000,
+  ielts_score: 7.0,
+  toefl_score: null,
+  other_languages: 'Urdu, Punjabi',
+  needs_scholarship: true,
+  target_intake: 'Fall 2027',
+  ranking_preference: 'Top 500'
+};
