@@ -3,7 +3,7 @@
 React 19 + Vite + Bootstrap 5 frontend for the Study Abroad Assistant.
 
 ## Owner
-**Hasana Zahid** — Frontend Developer
+**Dur-e-Shahwar** — Frontend Developer
 
 ## Quick Start
 
