@@ -6,8 +6,8 @@ An AI-powered university and scholarship guidance platform for students seeking 
 
 | Role | Name | Branch |
 |------|------|--------|
-| Frontend Developer | Hasana Zahid | `frontend/person1` |
-| Backend Developer | Dur-e-Shahwar | `backend/person2` |
+| Frontend Developer | Dur-e-Shahwar | `frontend/person1` |
+| Backend Developer | Hasana Zahid | `backend/person2` |
 
 ## Tech Stack
 
