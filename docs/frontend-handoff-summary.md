@@ -1,7 +1,7 @@
 # Frontend Handoff Summary
 
-**From:** Hasana Zahid (Frontend Developer)  
-**To:** Dur-e-Shahwar (Backend Developer)  
+**From:** Dur-e-Shahwar(Frontend Developer)  
+**To:** Hasana Zahid (Backend Developer)  
 **Date:** May 2026
 
 ---
