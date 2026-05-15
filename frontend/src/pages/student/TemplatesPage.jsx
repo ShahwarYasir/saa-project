@@ -1,7 +1,7 @@
 import { useState, useContext } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useApi } from '../../hooks/useApi';
-import { getTemplates } from '../../services/templateService';
+import { downloadTemplate, getTemplates } from '../../services/templateService';
 import { ToastContext } from '../../context/ToastContext';
 
 const CATEGORY_COLORS = {
@@ -38,7 +38,7 @@ function Shimmer() {
   );
 }
 
-function PreviewModal({ template, onClose }) {
+function PreviewModal({ template, onClose, onDownload }) {
   if (!template) return null;
   const color = CATEGORY_COLORS[template.category] || '#64748B';
   return (
@@ -56,7 +56,7 @@ function PreviewModal({ template, onClose }) {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {template.format.map(fmt => (
-            <button key={fmt} onClick={onClose} style={{ flex: 1, background: 'var(--saa-gradient-gold)', color: 'var(--saa-navy)', fontWeight: 700, border: 'none', borderRadius: 10, padding: '0.7rem', cursor: 'pointer', fontSize: 13 }}>
+            <button key={fmt} onClick={() => onDownload(template, fmt)} style={{ flex: 1, background: 'var(--saa-gradient-gold)', color: 'var(--saa-navy)', fontWeight: 700, border: 'none', borderRadius: 10, padding: '0.7rem', cursor: 'pointer', fontSize: 13 }}>
               Download {fmt}
             </button>
           ))}
@@ -68,22 +68,31 @@ function PreviewModal({ template, onClose }) {
 
 export default function TemplatesPage() {
   const toast = useContext(ToastContext);
-  const { loading } = useApi(() => Promise.resolve({ success: true, data: ENRICHED }));
+  const { data, loading } = useApi(getTemplates);
   const [activeTab, setActiveTab] = useState('All');
   const [preview, setPreview] = useState(null);
 
-  const templates = ENRICHED;
+  const templates = data?.data?.length ? data.data.map((template, index) => ({
+    ...template,
+    pages: ENRICHED[index]?.pages || 1,
+    format: (template.format || ['pdf', 'docx']).map(fmt => String(fmt).toUpperCase()),
+  })) : ENRICHED;
   const filtered = activeTab === 'All' ? templates : templates.filter(t => t.category === activeTab);
 
-  function handleDownload(t, fmt) {
-    toast?.success(`${t.name} (${fmt}) downloaded!`);
+  async function handleDownload(t, fmt) {
+    try {
+      await downloadTemplate(t.id, fmt);
+      toast?.success(`${t.name} (${fmt}) downloaded!`);
+    } catch (error) {
+      toast?.error(error?.message || 'Download failed');
+    }
   }
 
   return (
     <DashboardLayout pageTitle="Templates">
       <style>{`@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
 
-      <PreviewModal template={preview} onClose={() => setPreview(null)} />
+      <PreviewModal template={preview} onClose={() => setPreview(null)} onDownload={handleDownload} />
 
       {/* Header */}
       <div style={{ marginBottom: 24 }}>

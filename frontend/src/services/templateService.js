@@ -1,7 +1,7 @@
 import { apiRequest } from './apiClient';
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 const mockTemplates = [
   { id: 1, name: 'Academic CV', description: 'A structured CV template designed for academic applications, highlighting education, research, and publications.', category: 'CV', format: ['pdf', 'docx'] },
@@ -25,7 +25,7 @@ export async function downloadTemplate(id, format) {
     throw { status: 501, message: 'Template downloads coming soon!' };
   }
   const token = localStorage.getItem('saa_access_token');
-  const response = await fetch(`${API_BASE_URL}/templates/${id}/download?format=${format}`, {
+  const response = await fetch(`${API_BASE_URL}/templates/${id}/download?format=${String(format).toLowerCase()}`, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {})
     }
