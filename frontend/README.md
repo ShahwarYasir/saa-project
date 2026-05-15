@@ -23,14 +23,14 @@ This is the frontend application for the Study Abroad Assistant, a platform desi
 ### 📊 Student Pages
 | Page | Preview |
 |------|---------|
-| Dashboard | ![Dashboard](docs/screenshots/Dashboard.png) |
+| Dashboard | ![Dashboard](docs/screenshots/Dashboard.PNG) |
 | Profile Builder | ![Profile](docs/screenshots/profile.png) |
-| Universities | ![Universities](docs/screenshots/Universities.png) |
-| Scholarships | ![Scholarships](docs/screenshots/Scholarships.png) |
-| Shortlist | ![Shortlist](docs/screenshots/Shortlist.png) |
+| Universities | ![Universities](docs/screenshots/Universities.PNG) |
+| Scholarships | ![Scholarships](docs/screenshots/Scholarships.PNG) |
+| Shortlist | ![Shortlist](docs/screenshots/Shortlist.PNG) |
 | Writing Assistant | ![Writing](docs/screenshots/writing-assistant.png) |
-| Roadmap | ![Roadmap](docs/screenshots/Roadmap.png) |
-| Templates | ![Templates](docs/screenshots/Templates.png) |
+| Roadmap | ![Roadmap](docs/screenshots/Roadmap.PNG) |
+| Templates | ![Templates](docs/screenshots/Templates.PNG) |
 | How To Apply | ![HowToApply](docs/screenshots/how-to-apply.png) |
 
 ### 🔐 Admin Pages
