@@ -51,7 +51,7 @@ function saa_dispatch(string $method, string $path, array $db): void
         return;
     }
 
-    if ($method === 'POST' && $path === '/api/admin/auth/login') {
+    if ($method === 'POST' && ($path === '/api/admin/auth/login' || $path === '/api/auth/admin/login')) {
         saa_auth_login($db, 'admin');
         return;
     }
@@ -178,7 +178,7 @@ function saa_dispatch(string $method, string $path, array $db): void
 
     if ($method === 'GET' && $path === '/api/admin/universities') {
         saa_require_auth($db, 'admin');
-        saa_json(['success' => true, 'data' => array_values($db['universities'])]);
+        saa_json(['success' => true, 'data' => array_map('saa_university_response', array_values($db['universities']))]);
         return;
     }
 
@@ -202,7 +202,7 @@ function saa_dispatch(string $method, string $path, array $db): void
 
     if ($method === 'GET' && $path === '/api/admin/scholarships') {
         saa_require_auth($db, 'admin');
-        saa_json(['success' => true, 'data' => array_values($db['scholarships'])]);
+        saa_json(['success' => true, 'data' => array_map('saa_scholarship_response', array_values($db['scholarships']))]);
         return;
     }
 
@@ -390,17 +390,25 @@ function saa_auth_register(array $db): void
 {
     $input = saa_input();
     $errors = [];
+    $fullName = trim((string) ($input['full_name'] ?? ''));
+    $phone = trim((string) ($input['phone'] ?? ''));
 
-    if (strlen(trim((string) ($input['full_name'] ?? ''))) < 2) {
+    if (strlen($fullName) < 2) {
         $errors['full_name'][] = 'Full name must be at least 2 characters.';
+    } elseif (strlen($fullName) > 120) {
+        $errors['full_name'][] = 'Full name must not exceed 120 characters.';
+    } elseif (saa_contains_unsafe_text($fullName)) {
+        $errors['full_name'][] = 'Full name contains unsupported characters.';
     }
     if (!filter_var($input['email'] ?? '', FILTER_VALIDATE_EMAIL)) {
         $errors['email'][] = 'Enter a valid email address.';
     } elseif (saa_find_user_by_email($db, (string) $input['email']) !== null) {
         $errors['email'][] = 'The email has already been taken.';
     }
-    if (strlen(trim((string) ($input['phone'] ?? ''))) < 7) {
-        $errors['phone'][] = 'Phone number is required.';
+    if (strlen($phone) < 7) {
+        $errors['phone'][] = 'Phone number must be at least 7 characters.';
+    } elseif (strlen($phone) > 30 || !preg_match('/^[0-9+()\-\s]+$/', $phone)) {
+        $errors['phone'][] = 'Phone number format is invalid.';
     }
 
     $password = (string) ($input['password'] ?? '');
@@ -419,9 +427,9 @@ function saa_auth_register(array $db): void
     $userId = saa_next_id($db['users']);
     $db['users'][] = [
         'id' => $userId,
-        'full_name' => trim((string) $input['full_name']),
+        'full_name' => $fullName,
         'email' => strtolower(trim((string) $input['email'])),
-        'phone' => trim((string) $input['phone']),
+        'phone' => $phone,
         'password_hash' => password_hash($password, PASSWORD_DEFAULT),
         'role' => 'student',
         'status' => 'active',
@@ -596,6 +604,12 @@ function saa_profile_for_user(array $db, array $user): array
 function saa_update_profile(array $db, array $user): void
 {
     $input = saa_input();
+    $errors = saa_validate_profile_input($input);
+    if ($errors !== []) {
+        saa_error('Validation failed', 422, $errors);
+        return;
+    }
+
     $allowed = [
         'nationality',
         'current_country',
@@ -770,7 +784,7 @@ function saa_university_recommendations(array $db, array $user): void
     $items = array_map(function (array $item) use ($profile, $shortlisted): array {
         $item['match_score'] = saa_calculate_university_match($item, $profile);
         $item['is_shortlisted'] = in_array((int) $item['id'], $shortlisted, true);
-        return $item;
+        return saa_university_response($item);
     }, array_values($items));
 
     usort($items, fn (array $a, array $b): int => ($b['match_score'] ?? 0) <=> ($a['match_score'] ?? 0));
@@ -822,7 +836,7 @@ function saa_scholarship_recommendations(array $db, array $user): void
 
     $items = array_map(function (array $item) use ($shortlisted): array {
         $item['is_shortlisted'] = in_array((int) $item['id'], $shortlisted, true);
-        return $item;
+        return saa_scholarship_response($item);
     }, array_values($items));
 
     saa_json(['success' => true, 'data' => $items]);
@@ -847,10 +861,45 @@ function saa_shortlist_index(array $db, array $user): void
     saa_json([
         'success' => true,
         'data' => [
-            'universities' => array_values(array_filter($db['universities'], fn (array $item): bool => in_array((int) $item['id'], $universityIds, true))),
-            'scholarships' => array_values(array_filter($db['scholarships'], fn (array $item): bool => in_array((int) $item['id'], $scholarshipIds, true))),
+            'universities' => array_map('saa_university_response', array_values(array_filter($db['universities'], fn (array $item): bool => in_array((int) $item['id'], $universityIds, true)))),
+            'scholarships' => array_map('saa_scholarship_response', array_values(array_filter($db['scholarships'], fn (array $item): bool => in_array((int) $item['id'], $scholarshipIds, true)))),
         ],
     ]);
+}
+
+function saa_validate_profile_input(array $input): array
+{
+    $errors = [];
+    foreach ([
+        'nationality',
+        'current_country',
+        'current_qualification',
+        'field_of_interest',
+        'degree_level',
+        'other_languages',
+        'target_intake',
+        'ranking_preference',
+    ] as $field) {
+        if (array_key_exists($field, $input)) {
+            saa_validate_text_field($errors, $field, $input[$field], 150);
+        }
+    }
+
+    saa_validate_numeric_field($errors, 'gpa', $input, 0, 4);
+    saa_validate_numeric_field($errors, 'annual_budget_usd', $input, 0, null);
+    saa_validate_numeric_field($errors, 'ielts_score', $input, 0, 9);
+    saa_validate_numeric_field($errors, 'toefl_score', $input, 0, 120);
+
+    if (array_key_exists('preferred_countries', $input)) {
+        foreach (saa_array_value($input['preferred_countries']) as $country) {
+            if (saa_contains_unsafe_text($country)) {
+                $errors['preferred_countries'][] = 'Preferred countries contain unsupported characters.';
+                break;
+            }
+        }
+    }
+
+    return $errors;
 }
 
 function saa_shortlist_store(array $db, array $user): void
@@ -1255,13 +1304,7 @@ function saa_admin_dashboard(array $db): void
             'total_universities' => count($db['universities']),
             'total_scholarships' => count($db['scholarships']),
             'active_sessions' => count(array_filter($db['users'], fn (array $user): bool => ($user['status'] ?? 'active') === 'active')),
-            'recent_registrations' => array_slice(array_map(fn (array $user): array => [
-                'id' => (int) $user['id'],
-                'full_name' => $user['full_name'],
-                'email' => $user['email'],
-                'registered_at' => $user['registered_at'] ?? '',
-                'status' => $user['status'] ?? 'active',
-            ], $students), 0, 5),
+            'recent_registrations' => array_slice(array_map(fn (array $user): array => saa_admin_student_response($db, $user), $students), 0, 5),
         ],
     ]);
 }
@@ -1269,7 +1312,7 @@ function saa_admin_dashboard(array $db): void
 function saa_admin_create_university(array $db): void
 {
     $input = saa_input();
-    $errors = saa_validate_required($input, ['name', 'country', 'city', 'ranking', 'tuition_fee_usd', 'gpa_requirement', 'ielts_requirement', 'application_deadline']);
+    $errors = array_merge(saa_validate_required($input, ['name', 'country']), saa_validate_university_input($input));
     if ($errors !== []) {
         saa_error('Validation failed', 422, $errors);
         return;
@@ -1278,7 +1321,7 @@ function saa_admin_create_university(array $db): void
     $item = saa_university_payload($input, saa_next_id($db['universities']));
     $db['universities'][] = $item;
     saa_save_db($db);
-    saa_json(['success' => true, 'message' => 'University created', 'data' => $item], 201);
+    saa_json(['success' => true, 'message' => 'University created', 'data' => saa_university_response($item)], 201);
 }
 
 function saa_admin_update_university(array $db, int $id): void
@@ -1290,40 +1333,98 @@ function saa_admin_update_university(array $db, int $id): void
     }
 
     $input = saa_input();
+    $errors = saa_validate_university_input($input);
+    if ($errors !== []) {
+        saa_error('Validation failed', 422, $errors);
+        return;
+    }
+
     $item = array_merge($db['universities'][$index], saa_university_payload($input, $id, false));
     $db['universities'][$index] = $item;
     saa_save_db($db);
-    saa_json(['success' => true, 'message' => 'University updated', 'data' => $item]);
+    saa_json(['success' => true, 'message' => 'University updated', 'data' => saa_university_response($item)]);
+}
+
+function saa_validate_university_input(array $input): array
+{
+    $errors = [];
+
+    foreach (['name', 'country', 'city'] as $field) {
+        if (array_key_exists($field, $input)) {
+            saa_validate_text_field($errors, $field, $input[$field], $field === 'name' ? 150 : 80);
+        }
+    }
+    if (array_key_exists('description', $input)) {
+        saa_validate_text_field($errors, 'description', $input['description'], 1000);
+    }
+
+    saa_validate_numeric_field($errors, 'ranking', $input, 1, null, true);
+    saa_validate_numeric_field($errors, 'tuition_fee_usd', $input, 0, null);
+    saa_validate_numeric_field($errors, 'gpa_requirement', $input, 0, 4);
+    saa_validate_numeric_field($errors, 'ielts_requirement', $input, 0, 9);
+    saa_validate_numeric_field($errors, 'match_score', $input, 0, 100);
+
+    if (array_key_exists('application_deadline', $input)) {
+        saa_validate_date_field($errors, 'application_deadline', $input['application_deadline']);
+    }
+    foreach (['portal_url', 'website'] as $field) {
+        if (array_key_exists($field, $input)) {
+            saa_validate_url_field($errors, $field, $input[$field]);
+        }
+    }
+    if (array_key_exists('programs', $input)) {
+        foreach (saa_array_value($input['programs']) as $program) {
+            if (strlen($program) > 120 || saa_contains_unsafe_text($program)) {
+                $errors['programs'][] = 'Programs contain an invalid value.';
+                break;
+            }
+        }
+    }
+
+    return $errors;
 }
 
 function saa_university_payload(array $input, int $id, bool $creating = true): array
 {
     $base = $creating ? [
         'id' => $id,
-        'programs' => ['MSc Computer Science'],
+        'name' => '',
+        'country' => '',
+        'city' => '',
+        'ranking' => null,
+        'programs' => [],
+        'tuition_fee_usd' => 0,
+        'gpa_requirement' => null,
+        'ielts_requirement' => null,
+        'application_deadline' => '',
         'degree_levels' => ['Master'],
         'match_score' => 75,
         'website' => '',
+        'portal_url' => '',
         'description' => 'University listing added by admin.',
     ] : [];
 
-    foreach (['name', 'country', 'city', 'website', 'description'] as $field) {
+    if (array_key_exists('portal_url', $input) && !array_key_exists('website', $input)) {
+        $input['website'] = $input['portal_url'];
+    }
+
+    foreach (['name', 'country', 'city', 'website', 'portal_url', 'description'] as $field) {
         if (array_key_exists($field, $input)) {
             $base[$field] = trim((string) $input[$field]);
         }
     }
     foreach (['ranking'] as $field) {
         if (array_key_exists($field, $input)) {
-            $base[$field] = (int) $input[$field];
+            $base[$field] = saa_nullable_int($input[$field]);
         }
     }
     foreach (['tuition_fee_usd', 'gpa_requirement', 'ielts_requirement', 'match_score'] as $field) {
         if (array_key_exists($field, $input)) {
-            $base[$field] = (float) $input[$field];
+            $base[$field] = saa_nullable_float($input[$field]);
         }
     }
     if (array_key_exists('application_deadline', $input)) {
-        $base['application_deadline'] = (string) $input['application_deadline'];
+        $base['application_deadline'] = trim((string) $input['application_deadline']);
     }
     if (array_key_exists('programs', $input)) {
         $base['programs'] = saa_array_value($input['programs']);
@@ -1335,10 +1436,43 @@ function saa_university_payload(array $input, int $id, bool $creating = true): a
     return $base;
 }
 
+function saa_university_response(array $item): array
+{
+    $portalUrl = trim((string) ($item['portal_url'] ?? ''));
+    $website = trim((string) ($item['website'] ?? ''));
+    if ($portalUrl === '' && $website !== '') {
+        $portalUrl = $website;
+    }
+    if ($website === '' && $portalUrl !== '') {
+        $website = $portalUrl;
+    }
+
+    $item['portal_url'] = $portalUrl;
+    $item['website'] = $website;
+    $item['programs'] = saa_array_value($item['programs'] ?? []);
+    $item['degree_levels'] = saa_array_value($item['degree_levels'] ?? []);
+
+    foreach (['city', 'application_deadline', 'description'] as $field) {
+        if (!array_key_exists($field, $item)) {
+            $item[$field] = '';
+        }
+    }
+    foreach (['ranking', 'gpa_requirement', 'ielts_requirement', 'match_score'] as $field) {
+        if (!array_key_exists($field, $item)) {
+            $item[$field] = null;
+        }
+    }
+    if (!array_key_exists('tuition_fee_usd', $item) || $item['tuition_fee_usd'] === null || $item['tuition_fee_usd'] === '') {
+        $item['tuition_fee_usd'] = 0;
+    }
+
+    return $item;
+}
+
 function saa_admin_create_scholarship(array $db): void
 {
     $input = saa_input();
-    $errors = saa_validate_required($input, ['name', 'provider', 'funding_country', 'coverage', 'deadline']);
+    $errors = array_merge(saa_validate_required($input, ['name', 'provider']), saa_validate_scholarship_input($input));
     if ($errors !== []) {
         saa_error('Validation failed', 422, $errors);
         return;
@@ -1347,7 +1481,7 @@ function saa_admin_create_scholarship(array $db): void
     $item = saa_scholarship_payload($input, saa_next_id($db['scholarships']));
     $db['scholarships'][] = $item;
     saa_save_db($db);
-    saa_json(['success' => true, 'message' => 'Scholarship created', 'data' => $item], 201);
+    saa_json(['success' => true, 'message' => 'Scholarship created', 'data' => saa_scholarship_response($item)], 201);
 }
 
 function saa_admin_update_scholarship(array $db, int $id): void
@@ -1359,27 +1493,114 @@ function saa_admin_update_scholarship(array $db, int $id): void
     }
 
     $input = saa_input();
+    $errors = saa_validate_scholarship_input($input);
+    if ($errors !== []) {
+        saa_error('Validation failed', 422, $errors);
+        return;
+    }
+
     $item = array_merge($db['scholarships'][$index], saa_scholarship_payload($input, $id, false));
     $db['scholarships'][$index] = $item;
     saa_save_db($db);
-    saa_json(['success' => true, 'message' => 'Scholarship updated', 'data' => $item]);
+    saa_json(['success' => true, 'message' => 'Scholarship updated', 'data' => saa_scholarship_response($item)]);
+}
+
+function saa_validate_scholarship_input(array $input): array
+{
+    $errors = [];
+
+    foreach (['name', 'provider', 'country', 'funding_country'] as $field) {
+        if (array_key_exists($field, $input)) {
+            saa_validate_text_field($errors, $field, $input[$field], $field === 'name' ? 150 : 100);
+        }
+    }
+    foreach (['amount', 'eligibility', 'eligibility_summary', 'details'] as $field) {
+        if (array_key_exists($field, $input)) {
+            saa_validate_text_field($errors, $field, $input[$field], 1000);
+        }
+    }
+
+    $coverage = $input['coverage_type'] ?? ($input['coverage'] ?? null);
+    if ($coverage !== null && trim((string) $coverage) !== '' && !saa_is_valid_coverage((string) $coverage)) {
+        $errors[array_key_exists('coverage_type', $input) ? 'coverage_type' : 'coverage'][] = 'Coverage type is invalid.';
+    }
+
+    $deadline = $input['application_deadline'] ?? ($input['deadline'] ?? null);
+    if ($deadline !== null) {
+        saa_validate_date_field($errors, array_key_exists('application_deadline', $input) ? 'application_deadline' : 'deadline', $deadline);
+    }
+
+    foreach (['portal_url', 'link'] as $field) {
+        if (array_key_exists($field, $input)) {
+            saa_validate_url_field($errors, $field, $input[$field]);
+        }
+    }
+    foreach (['eligible_nationalities', 'degree_levels'] as $field) {
+        if (array_key_exists($field, $input)) {
+            foreach (saa_array_value($input[$field]) as $item) {
+                if (strlen($item) > 80 || saa_contains_unsafe_text($item)) {
+                    $errors[$field][] = 'This field contains an invalid value.';
+                    break;
+                }
+            }
+        }
+    }
+
+    return $errors;
 }
 
 function saa_scholarship_payload(array $input, int $id, bool $creating = true): array
 {
     $base = $creating ? [
         'id' => $id,
+        'name' => '',
+        'provider' => '',
+        'funding_country' => '',
+        'country' => '',
+        'coverage' => '',
+        'coverage_type' => '',
+        'amount' => '',
         'eligible_nationalities' => ['All'],
         'eligibility_summary' => '',
+        'eligibility' => '',
         'degree_levels' => ['Master'],
+        'deadline' => '',
+        'application_deadline' => '',
         'details' => '',
         'link' => '',
+        'portal_url' => '',
     ] : [];
 
-    foreach (['name', 'provider', 'funding_country', 'coverage', 'eligibility_summary', 'deadline', 'details', 'link'] as $field) {
+    if (array_key_exists('country', $input) && !array_key_exists('funding_country', $input)) {
+        $input['funding_country'] = $input['country'];
+    }
+    if (array_key_exists('coverage_type', $input) && !array_key_exists('coverage', $input)) {
+        $input['coverage'] = saa_coverage_to_canonical((string) $input['coverage_type']);
+    }
+    if (array_key_exists('application_deadline', $input) && !array_key_exists('deadline', $input)) {
+        $input['deadline'] = $input['application_deadline'];
+    }
+    if (array_key_exists('eligibility', $input) && !array_key_exists('eligibility_summary', $input)) {
+        $input['eligibility_summary'] = $input['eligibility'];
+    }
+    if (array_key_exists('portal_url', $input) && !array_key_exists('link', $input)) {
+        $input['link'] = $input['portal_url'];
+    }
+    if (array_key_exists('amount', $input) && !array_key_exists('details', $input)) {
+        $input['details'] = $input['amount'];
+    }
+
+    foreach (['name', 'provider', 'funding_country', 'country', 'coverage', 'coverage_type', 'amount', 'eligibility_summary', 'eligibility', 'deadline', 'application_deadline', 'details', 'link', 'portal_url'] as $field) {
         if (array_key_exists($field, $input)) {
             $base[$field] = trim((string) $input[$field]);
         }
+    }
+    if (array_key_exists('coverage', $input) && !array_key_exists('coverage_type', $input)) {
+        $base['coverage_type'] = saa_coverage_to_admin_label((string) $input['coverage']);
+    }
+    if (array_key_exists('coverage_type', $input)) {
+        $base['coverage_type'] = trim((string) $input['coverage_type']);
+        $base['coverage'] = saa_coverage_to_canonical((string) $input['coverage_type']);
     }
     if (array_key_exists('eligible_nationalities', $input)) {
         $base['eligible_nationalities'] = saa_array_value($input['eligible_nationalities']);
@@ -1389,6 +1610,85 @@ function saa_scholarship_payload(array $input, int $id, bool $creating = true): 
     }
 
     return $base;
+}
+
+function saa_scholarship_response(array $item): array
+{
+    $country = trim((string) ($item['country'] ?? $item['funding_country'] ?? ''));
+    $fundingCountry = trim((string) ($item['funding_country'] ?? $country));
+    $coverage = trim((string) ($item['coverage'] ?? ''));
+    $coverageType = trim((string) ($item['coverage_type'] ?? ''));
+    if ($coverage === '' && $coverageType !== '') {
+        $coverage = saa_coverage_to_canonical($coverageType);
+    }
+    if ($coverageType === '' && $coverage !== '') {
+        $coverageType = saa_coverage_to_admin_label($coverage);
+    }
+    $deadline = trim((string) ($item['deadline'] ?? $item['application_deadline'] ?? ''));
+    $eligibility = trim((string) ($item['eligibility'] ?? $item['eligibility_summary'] ?? ''));
+    $link = trim((string) ($item['link'] ?? ''));
+    $portalUrl = trim((string) ($item['portal_url'] ?? ''));
+    if ($link === '' && $portalUrl !== '') {
+        $link = $portalUrl;
+    }
+    $amount = trim((string) ($item['amount'] ?? ''));
+    $details = trim((string) ($item['details'] ?? ''));
+    if ($details === '' && $amount !== '') {
+        $details = $amount;
+    }
+
+    $item['country'] = $country !== '' ? $country : $fundingCountry;
+    $item['funding_country'] = $fundingCountry !== '' ? $fundingCountry : $country;
+    $item['coverage'] = $coverage;
+    $item['coverage_type'] = $coverageType;
+    $item['deadline'] = $deadline;
+    $item['application_deadline'] = $deadline;
+    $item['eligibility_summary'] = $eligibility;
+    $item['eligibility'] = $eligibility;
+    $item['link'] = $link;
+    $item['portal_url'] = $link;
+    $item['amount'] = $amount !== '' ? $amount : $details;
+    $item['details'] = $details;
+    $item['eligible_nationalities'] = saa_array_value($item['eligible_nationalities'] ?? ['All']);
+    $item['degree_levels'] = saa_array_value($item['degree_levels'] ?? ['Master']);
+
+    return $item;
+}
+
+function saa_coverage_to_canonical(string $coverage): string
+{
+    $normalized = strtolower(trim($coverage));
+    return match ($normalized) {
+        'full' => 'Fully Funded',
+        'partial' => 'Partial Funding',
+        'tuition only', 'tuition' => 'Tuition Waiver',
+        default => trim($coverage),
+    };
+}
+
+function saa_coverage_to_admin_label(string $coverage): string
+{
+    $normalized = strtolower(trim($coverage));
+    return match ($normalized) {
+        'fully funded', 'full' => 'Full',
+        'partial funding', 'partial' => 'Partial',
+        'tuition waiver', 'tuition only', 'tuition' => 'Tuition Only',
+        default => trim($coverage),
+    };
+}
+
+function saa_is_valid_coverage(string $coverage): bool
+{
+    return in_array(strtolower(trim($coverage)), [
+        'full',
+        'partial',
+        'tuition only',
+        'tuition',
+        'fully funded',
+        'partial funding',
+        'tuition waiver',
+        'stipend only',
+    ], true);
 }
 
 function saa_admin_delete_entity(array $db, string $collection, string $type, int $id): void
@@ -1410,14 +1710,27 @@ function saa_admin_students(array $db): void
     $students = array_values(array_filter($db['users'], fn (array $user): bool => $user['role'] === 'student'));
     saa_json([
         'success' => true,
-        'data' => array_map(fn (array $user): array => [
-            'id' => (int) $user['id'],
-            'full_name' => $user['full_name'],
-            'email' => $user['email'],
-            'status' => $user['status'] ?? 'active',
-            'registered_at' => $user['registered_at'] ?? '',
-        ], $students),
+        'data' => array_map(fn (array $user): array => saa_admin_student_response($db, $user), $students),
     ]);
+}
+
+function saa_admin_student_response(array $db, array $user): array
+{
+    $profile = saa_profile_for_user($db, $user);
+    $degreeLevel = (string) ($profile['degree_level'] ?? '');
+
+    return [
+        'id' => (int) $user['id'],
+        'full_name' => $user['full_name'],
+        'email' => $user['email'],
+        'phone' => $user['phone'] ?? '',
+        'status' => $user['status'] ?? 'active',
+        'registered_at' => $user['registered_at'] ?? '',
+        'degree_level' => $degreeLevel,
+        'degree' => $degreeLevel,
+        'preferred_countries' => saa_array_value($profile['preferred_countries'] ?? []),
+        'completion_percentage' => saa_profile_completion($profile),
+    ];
 }
 
 function saa_admin_update_student_status(array $db, int $id): void
@@ -1456,11 +1769,99 @@ function saa_validate_required(array $input, array $fields): array
 {
     $errors = [];
     foreach ($fields as $field) {
-        if (!array_key_exists($field, $input) || trim((string) $input[$field]) === '') {
+        if (!array_key_exists($field, $input)) {
+            $errors[$field][] = 'This field is required.';
+            continue;
+        }
+
+        $value = $input[$field];
+        $empty = is_array($value) ? count(saa_array_value($value)) === 0 : trim((string) $value) === '';
+        if ($empty) {
             $errors[$field][] = 'This field is required.';
         }
     }
     return $errors;
+}
+
+function saa_validate_text_field(array &$errors, string $field, mixed $value, int $maxLength): void
+{
+    $text = trim((string) $value);
+    if ($text === '') {
+        return;
+    }
+    if (strlen($text) > $maxLength) {
+        $errors[$field][] = 'This field is too long.';
+    }
+    if (saa_contains_unsafe_text($text)) {
+        $errors[$field][] = 'This field contains unsupported characters.';
+    }
+}
+
+function saa_validate_numeric_field(array &$errors, string $field, array $input, ?float $min = null, ?float $max = null, bool $integer = false): void
+{
+    if (!array_key_exists($field, $input) || $input[$field] === '' || $input[$field] === null) {
+        return;
+    }
+
+    if (!is_numeric($input[$field])) {
+        $errors[$field][] = 'This field must be a valid number.';
+        return;
+    }
+
+    $value = (float) $input[$field];
+    if ($integer && floor($value) !== $value) {
+        $errors[$field][] = 'This field must be a whole number.';
+    }
+    if ($min !== null && $value < $min) {
+        $errors[$field][] = 'This field must be at least ' . saa_format_number_label($min) . '.';
+    }
+    if ($max !== null && $value > $max) {
+        $errors[$field][] = 'This field must be at most ' . saa_format_number_label($max) . '.';
+    }
+}
+
+function saa_format_number_label(float $value): string
+{
+    return floor($value) === $value ? (string) (int) $value : (string) $value;
+}
+
+function saa_validate_date_field(array &$errors, string $field, mixed $value): void
+{
+    $date = trim((string) $value);
+    if ($date === '') {
+        return;
+    }
+
+    $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+    if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
+        $errors[$field][] = 'Date must use YYYY-MM-DD format.';
+    }
+}
+
+function saa_validate_url_field(array &$errors, string $field, mixed $value): void
+{
+    $url = trim((string) $value);
+    if ($url === '') {
+        return;
+    }
+    if (strlen($url) > 500 || !filter_var($url, FILTER_VALIDATE_URL)) {
+        $errors[$field][] = 'Enter a valid URL.';
+    }
+}
+
+function saa_contains_unsafe_text(string $value): bool
+{
+    return $value !== strip_tags($value) || (bool) preg_match('/[<>]/', $value);
+}
+
+function saa_nullable_int(mixed $value): ?int
+{
+    return $value === '' || $value === null ? null : (int) $value;
+}
+
+function saa_nullable_float(mixed $value): ?float
+{
+    return $value === '' || $value === null ? null : (float) $value;
 }
 
 function saa_array_value(mixed $value): array

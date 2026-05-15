@@ -17,6 +17,20 @@ const getMockDetails = (id) => {
   };
 };
 
+const getStudentDetails = (student, fallbackId) => {
+  const fallback = getMockDetails(fallbackId);
+  const countries = Array.isArray(student.preferred_countries) && student.preferred_countries.length
+    ? student.preferred_countries
+    : fallback.countries;
+
+  return {
+    completion: student.completion_percentage ?? student.completion ?? fallback.completion,
+    countries,
+    degree: student.degree_level || student.degree || fallback.degree,
+    phone: student.phone || fallback.phone
+  };
+};
+
 export default function ManageStudentsPage() {
   const toast = useContext(ToastContext);
   const { data: initialData, loading, error } = useApi(
@@ -143,7 +157,7 @@ export default function ManageStudentsPage() {
                   </tr>
                 ) : (
                   filteredData.map((s, idx) => {
-                    const mock = getMockDetails(s.id || idx);
+                    const mock = getStudentDetails(s, s.id || idx);
                     return (
                       <tr key={s.id} style={{ background: idx % 2 === 0 ? '#fff' : '#FAFBFC', transition: 'background 0.2s' }}>
                         <td style={{ padding: '1rem', color: 'var(--saa-text-muted)', fontWeight: 500 }}>{idx + 1}</td>
@@ -243,7 +257,7 @@ export default function ManageStudentsPage() {
                   <div style={{ padding: '1.5rem' }}>
                     <div className="row g-4">
                       {(() => {
-                        const m = getMockDetails(studentToView.id || 0);
+                        const m = getStudentDetails(studentToView, studentToView.id || 0);
                         return (
                           <>
                             <div className="col-6">
