@@ -45,7 +45,7 @@ Use `student@test.com` / `Test@1234`, then show redirect to dashboard.
 Show saved universities, saved scholarships, profile completion, roadmap progress, and recent activity loaded from PHP API.
 
 5. Profile Builder `/profile`
-Edit profile fields, preferred countries, IELTS/GPA, and save. Mention that data persists in `backend/data/database.json`.
+Edit profile fields, preferred countries, IELTS/GPA, and save. Mention that data persists in the MySQL database `saa_project`.
 
 6. Universities `/universities`
 Filter by Germany, show match scores, and save/remove a university from shortlist.
@@ -91,4 +91,4 @@ Navigate to `/anything-random` and show the not found page.
 - React frontend is integrated with a simple PHP API.
 - No Laravel, Composer, or MySQL is required for this phase.
 - Auth, student pages, admin pages, downloads, shortlist, and writing assistant are working.
-- Demo data is persisted locally in `backend/data/database.json`.
+- Demo data is persisted locally in the MySQL database `saa_project`.
