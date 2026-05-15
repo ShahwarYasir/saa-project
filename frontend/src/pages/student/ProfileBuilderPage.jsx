@@ -1,4 +1,5 @@
-import { useState, useContext, useRef } from 'react';
+import { useState, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import * as yup from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -94,6 +95,9 @@ function StepIndicator({ currentStep }) {
 export default function ProfileBuilderPage() {
   const { user } = useAuth();
   const toast = useContext(ToastContext);
+  const navigate = useNavigate();
+  const existingProfile = localStorage.getItem('saa_profile');
+  const isUpdate = !!existingProfile;
   const { data: profileData, loading } = useApi(getProfile);
   const profile = profileData?.data || {};
   const { percentage } = useProfileCompletion(profile);
@@ -130,20 +134,22 @@ export default function ProfileBuilderPage() {
         ranking_preference: data.ranking_preference,
       };
       await updateProfile(payload);
+      localStorage.setItem('saa_profile', JSON.stringify(payload));
       toast?.success('Profile saved successfully! ✅');
+      setTimeout(() => navigate('/dashboard'), 1500);
     } catch { toast?.error('Failed to save profile'); }
     finally { setSaving(false); }
   }
 
   if (loading) return (
-    <DashboardLayout pageTitle="Profile Builder">
+    <DashboardLayout pageTitle={isUpdate ? 'Update Your Profile' : 'Build Your Profile'}>
       <style>{`@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
       {[1,2,3,4].map(i => <Shimmer key={i} h={60} />)}
     </DashboardLayout>
   );
 
   return (
-    <DashboardLayout pageTitle="Profile Builder">
+    <DashboardLayout pageTitle={isUpdate ? 'Update Your Profile' : 'Build Your Profile'}>
       <style>{`@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}`}</style>
 
       {/* Profile completion mini ring */}
@@ -326,7 +332,7 @@ export default function ProfileBuilderPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
               <button type="button" onClick={() => setStep(2)} style={{ background: '#F1F5F9', color: 'var(--saa-text)', fontWeight: 600, padding: '0.75rem 1.5rem', border: 'none', borderRadius: 10, cursor: 'pointer' }}>← Back</button>
               <button type="submit" disabled={saving} style={{ background: 'var(--saa-gradient-gold)', color: 'var(--saa-navy)', fontWeight: 700, padding: '0.75rem 2rem', border: 'none', borderRadius: 10, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
-                {saving ? 'Saving...' : '💾 Save Profile'}
+                {saving ? 'Saving...' : isUpdate ? '💾 Update Profile' : '💾 Save Profile'}
               </button>
             </div>
           </form>

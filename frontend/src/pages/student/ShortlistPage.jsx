@@ -102,17 +102,31 @@ export default function ShortlistPage() {
   const universities = data?.data?.universities || [];
   const scholarships = data?.data?.scholarships || [];
   const [tab, setTab] = useState('universities');
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
-  async function handleRemoveUni(item) {
-    await removeFromShortlist('university', item.id);
-    setData(prev => ({ ...prev, data: { ...prev.data, universities: prev.data.universities.filter(u => u.id !== item.id) } }));
-    toast?.info(`Removed ${item.name} from shortlist`);
-  }
+  async function handleConfirmRemove() {
+    if (!confirmDelete) return;
+    const item = tab === 'universities'
+      ? universities.find(u => u.id === confirmDelete)
+      : scholarships.find(s => s.id === confirmDelete);
 
-  async function handleRemoveSch(item) {
-    await removeFromShortlist('scholarship', item.id);
-    setData(prev => ({ ...prev, data: { ...prev.data, scholarships: prev.data.scholarships.filter(s => s.id !== item.id) } }));
-    toast?.info(`Removed ${item.name} from shortlist`);
+    if (!item) {
+      setConfirmDelete(null);
+      return;
+    }
+
+    try {
+      if (tab === 'universities') {
+        await removeFromShortlist('university', item.id);
+        setData(prev => ({ ...prev, data: { ...prev.data, universities: prev.data.universities.filter(u => u.id !== item.id) } }));
+      } else {
+        await removeFromShortlist('scholarship', item.id);
+        setData(prev => ({ ...prev, data: { ...prev.data, scholarships: prev.data.scholarships.filter(s => s.id !== item.id) } }));
+      }
+      toast?.info(`Removed ${item.name} from shortlist`);
+    } finally {
+      setConfirmDelete(null);
+    }
   }
 
   return (
@@ -125,7 +139,7 @@ export default function ShortlistPage() {
           { key: 'universities', label: `Universities (${universities.length})` },
           { key: 'scholarships', label: `Scholarships (${scholarships.length})` },
         ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
+          <button key={t.key} onClick={() => { setTab(t.key); setConfirmDelete(null); }} style={{
             padding: '0.6rem 1.25rem', borderRadius: 10, border: 'none', cursor: 'pointer',
             fontSize: 14, fontWeight: 600, transition: 'var(--saa-transition)',
             background: tab === t.key ? '#fff' : 'transparent',
@@ -135,14 +149,23 @@ export default function ShortlistPage() {
         ))}
       </div>
 
+      {confirmDelete && (
+        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ color: '#991B1B', fontWeight: 600 }}>Remove this item from your shortlist?</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => setConfirmDelete(null)} style={{ background: 'transparent', border: '1.5px solid #D1D5DB', color: '#374151', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+            <button onClick={handleConfirmRemove} style={{ background: '#EF4444', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700 }}>Yes, Remove</button>
+          </div>
+        </div>
+      )}
       {loading ? (
         <div>{[1,2,3].map(i => <Shimmer key={i} />)}</div>
       ) : tab === 'universities' ? (
         universities.length === 0 ? <EmptyState type="Universities" /> :
-        universities.map(u => <UniversityRow key={u.id} item={u} onRemove={handleRemoveUni} />)
+        universities.map(u => <UniversityRow key={u.id} item={u} onRemove={item => setConfirmDelete(item.id)} />)
       ) : (
         scholarships.length === 0 ? <EmptyState type="Scholarships" /> :
-        scholarships.map(s => <ScholarshipRow key={s.id} item={s} onRemove={handleRemoveSch} />)
+        scholarships.map(s => <ScholarshipRow key={s.id} item={s} onRemove={item => setConfirmDelete(item.id)} />)
       )}
     </DashboardLayout>
   );

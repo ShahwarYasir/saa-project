@@ -29,7 +29,7 @@ function StepBadge({ n, active, done }) {
 
 export default function WritingAssistantPage() {
   const toast = useContext(ToastContext);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(0);
   const [docType, setDocType] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [content, setContent] = useState('');
@@ -94,15 +94,15 @@ export default function WritingAssistantPage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
         {[{ n: 1, label: 'Choose Type' }, { n: 2, label: 'Provide Context' }, { n: 3, label: 'Review & Edit' }].map((s, i) => (
           <div key={s.n} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <StepBadge n={s.n} active={step === s.n} done={step > s.n} />
-            <span style={{ fontSize: 13, fontWeight: step === s.n ? 700 : 400, color: step === s.n ? 'var(--saa-navy)' : step > s.n ? 'var(--saa-success)' : 'var(--saa-text-muted)' }}>{s.label}</span>
-            {i < 2 && <div style={{ width: 40, height: 2, background: step > s.n ? 'var(--saa-success)' : 'var(--saa-border)' }} />}
+            <StepBadge n={s.n} active={step === i} done={step > i} />
+            <span style={{ fontSize: 13, fontWeight: step === i ? 700 : 400, color: step === i ? 'var(--saa-navy)' : step > i ? 'var(--saa-success)' : 'var(--saa-text-muted)' }}>{s.label}</span>
+            {i < 2 && <div style={{ width: 40, height: 2, background: step > i ? 'var(--saa-success)' : 'var(--saa-border)' }} />}
           </div>
         ))}
       </div>
 
       {/* STEP 1 — Choose Document Type */}
-      {step === 1 && (
+      {step === 0 && (
         <div>
           <h4 style={{ fontWeight: 700, color: 'var(--saa-navy)', marginBottom: 20 }}>Choose Document Type</h4>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 16, marginBottom: 24 }}>
@@ -121,14 +121,14 @@ export default function WritingAssistantPage() {
           </div>
           {docType && (
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setStep(2)} style={{ background: 'var(--saa-gradient-gold)', color: 'var(--saa-navy)', fontWeight: 700, padding: '0.75rem 2rem', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>Next →</button>
+              <button onClick={() => setStep(1)} style={{ background: 'var(--saa-gradient-gold)', color: 'var(--saa-navy)', fontWeight: 700, padding: '0.75rem 2rem', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14 }}>Next →</button>
             </div>
           )}
         </div>
       )}
 
       {/* STEP 2 — Provide Context */}
-      {step === 2 && (
+      {step === 1 && (
         <div className="saa-card" style={{ padding: '2rem' }}>
           <h4 style={{ fontWeight: 700, color: 'var(--saa-navy)', marginBottom: 20 }}>Provide Context</h4>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
@@ -161,7 +161,7 @@ export default function WritingAssistantPage() {
             </select>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <button onClick={() => setStep(1)} style={{ background: '#F1F5F9', color: 'var(--saa-text)', fontWeight: 600, padding: '0.75rem 1.5rem', border: 'none', borderRadius: 10, cursor: 'pointer' }}>← Back</button>
+            <button onClick={() => setStep(0)} style={{ background: '#F1F5F9', color: 'var(--saa-text)', fontWeight: 600, padding: '0.75rem 1.5rem', border: 'none', borderRadius: 10, cursor: 'pointer' }}>← Back</button>
             <button onClick={handleGenerate} disabled={generating} style={{ background: 'var(--saa-gradient-gold)', color: 'var(--saa-navy)', fontWeight: 700, padding: '0.75rem 2rem', border: 'none', borderRadius: 10, cursor: 'pointer', opacity: generating ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 8 }}>
               {generating ? <><span className="spinner-border spinner-border-sm" /> Generating...</> : 'Generate Document →'}
             </button>
@@ -170,14 +170,29 @@ export default function WritingAssistantPage() {
       )}
 
       {/* STEP 3 — Review & Edit */}
-      {step === 3 && (
+      {step === 2 && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20, marginBottom: 16 }}>
             <div>
-              <textarea value={content} onChange={e => setContent(e.target.value)} rows={20}
-                style={{ width: '100%', padding: '1rem', border: '1.5px solid var(--saa-border)', borderRadius: 12, fontSize: 13, fontFamily: 'monospace', resize: 'vertical', minHeight: 400, lineHeight: 1.7 }} />
-              <div style={{ fontSize: 12, color: 'var(--saa-text-muted)', marginTop: 6 }}>Word count: <strong>{wordCount(content)}</strong> words</div>
-            </div>
+            <button onClick={() => {
+                setStep(0);
+                setDocType(null);
+                setContent('');
+                setFormVals({ university: '', program: '', achievements: '', why: '', goals: '', wordCount: '750' });
+                setDocId(null);
+                toast?.info('Started fresh! Choose a document type.');
+              }}
+              style={{
+                background: '#fff', border: '2px solid #0A1628', color: '#0A1628', borderRadius: 10,
+                padding: '8px 18px', fontWeight: 600, marginBottom: 16, cursor: 'pointer'
+              }}
+            >
+              ✨ Start New Document
+            </button>
+            <textarea value={content} onChange={e => setContent(e.target.value)} rows={20}
+              style={{ width: '100%', padding: '1rem', border: '1.5px solid var(--saa-border)', borderRadius: 12, fontSize: 13, fontFamily: 'monospace', resize: 'vertical', minHeight: 400, lineHeight: 1.7 }} />
+            <div style={{ fontSize: 12, color: 'var(--saa-text-muted)', marginTop: 6 }}>Word count: <strong>{wordCount(content)}</strong> words</div>
+          </div>
             <div className="saa-card" style={{ padding: '1.5rem', alignSelf: 'flex-start' }}>
               <h6 style={{ fontWeight: 700, color: 'var(--saa-navy)', marginBottom: 14 }}>✨ Tips for {DOC_TYPES.find(d => d.id === docType)?.label || 'this document'}</h6>
               {tips.map((t, i) => (

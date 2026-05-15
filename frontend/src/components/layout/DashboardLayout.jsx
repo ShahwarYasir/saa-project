@@ -26,6 +26,13 @@ function getGreeting() {
   return 'Good evening';
 }
 
+const MOCK_NOTIFICATIONS = [
+  { id: 1, icon: '🏛️', text: 'TU Munich application deadline in 15 days', time: '2 hours ago', read: false },
+  { id: 2, icon: '🎓', text: 'New scholarship match: DAAD 2026 now open', time: '5 hours ago', read: false },
+  { id: 3, icon: '✅', text: 'Your profile is 68% complete — finish it!', time: '1 day ago', read: true },
+  { id: 4, icon: '👋', text: 'Welcome to SAA! Start by building your profile', time: '3 days ago', read: true },
+];
+
 export default function DashboardLayout({ children, pageTitle }) {
   const { user, logout } = useAuth();
   const toast = useContext(ToastContext);
@@ -33,7 +40,10 @@ export default function DashboardLayout({ children, pageTitle }) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropOpen, setProfileDropOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
   const dropRef = useRef(null);
+  const notifRef = useRef(null);
 
   // Derive page title from route if not passed as prop
   const derivedTitle = pageTitle || NAV_ITEMS.find(n => location.pathname === n.to)?.label || 'Dashboard';
@@ -42,6 +52,9 @@ export default function DashboardLayout({ children, pageTitle }) {
     function handleClick(e) {
       if (dropRef.current && !dropRef.current.contains(e.target)) {
         setProfileDropOpen(false);
+      }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -90,8 +103,27 @@ export default function DashboardLayout({ children, pageTitle }) {
         {/* Footer */}
         <div className="saa-sidebar-footer">
           <button
-            className="saa-sidebar-link w-100 text-start"
-            style={{ color: 'rgba(255,255,255,0.5)' }}
+            className="w-100 text-start"
+            style={{
+              background: 'var(--saa-gold, #F5A623)',
+              color: '#0A1628',
+              borderRadius: 10,
+              padding: '10px 20px',
+              fontWeight: 700,
+              width: 'calc(100% - 32px)',
+              margin: '12px 16px',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--saa-navy, #0A1628)';
+              e.currentTarget.style.color = 'var(--saa-gold, #F5A623)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'var(--saa-gold, #F5A623)';
+              e.currentTarget.style.color = '#0A1628';
+            }}
             onClick={handleLogout}
           >
             <i className="bi bi-box-arrow-right" />
@@ -145,10 +177,54 @@ export default function DashboardLayout({ children, pageTitle }) {
           </div>
 
           <div className="header-right">
-            <button className="header-notification" aria-label="Notifications">
+            <div style={{ position: 'relative' }} ref={notifRef}>
+            <button
+              className="header-notification"
+              aria-label="Notifications"
+              onClick={() => setNotifOpen(o => !o)}
+              style={{ position: 'relative' }}
+            >
               <i className="bi bi-bell" />
-              <span className="badge-dot" />
+              {notifications.some(n => !n.read) && (
+                <span style={{ position: 'absolute', top: 6, right: 6, width: 10, height: 10, borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 0 2px rgba(255,255,255,0.9)' }} />
+              )}
             </button>
+            {notifOpen && (
+              <div style={{
+                position: 'absolute', right: 0, top: 50, width: 320,
+                background: '#fff', borderRadius: 16, boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                border: '1px solid #E2E8F0', zIndex: 100, overflow: 'hidden'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid #E2E8F0' }}>
+                  <div style={{ fontWeight: 700, color: '#0A1628' }}>Notifications</div>
+                  <button
+                    onClick={() => {
+                      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                      setNotifOpen(false);
+                    }}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--saa-gold, #F5A623)', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}
+                  >
+                    Mark all as read
+                  </button>
+                </div>
+                {notifications.map((notification, index) => (
+                  <div key={notification.id} style={{
+                    display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 16px',
+                    background: notification.read ? '#fff' : '#FFFBEB',
+                    borderBottom: index < notifications.length - 1 ? '1px solid #E2E8F0' : 'none'
+                  }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 12, background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                      {notification.icon}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: notification.read ? 500 : 700, color: 'var(--saa-navy)' }}>{notification.text}</div>
+                      <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>{notification.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
             <div style={{ position: 'relative' }} ref={dropRef}>
               <button
