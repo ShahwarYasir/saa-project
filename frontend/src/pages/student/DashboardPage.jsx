@@ -17,6 +17,15 @@ function todayLabel() {
   return new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function getFromStorage(key, fallback) {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function Shimmer({ h = 20, r = 8 }) {
   return (
     <div style={{
@@ -94,7 +103,11 @@ export default function DashboardPage() {
   const { data: profileData, loading: profileLoading } = useApi(getProfile);
   const profile = profileData?.data || null;
   const dash = dashData?.data || null;
-  const { percentage: profilePct } = useProfileCompletion(profile);
+  const shortlistUnis = getFromStorage('saa_shortlist_unis', []);
+  const shortlistScholarships = getFromStorage('saa_shortlist_scholarships', []);
+  const roadmapProgress = Number(getFromStorage('saa_roadmap_progress', 0)) || 0;
+  const storedProfile = getFromStorage('saa_profile', null);
+  const { percentage: profilePct } = useProfileCompletion(storedProfile);
   const loading = dashLoading || profileLoading;
 
   return (
@@ -159,9 +172,9 @@ export default function DashboardPage() {
 
           {/* Stat Cards */}
           <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-            <StatCard icon="🏛️" label="Saved Universities" value={dash?.saved_universities ?? 0} trend="↑ 2 this week" bg="rgba(14,165,233,0.12)" />
-            <StatCard icon="🎓" label="Saved Scholarships" value={dash?.saved_scholarships ?? 0} trend="↑ 1 this week" bg="rgba(245,166,35,0.12)" />
-            <StatCard icon="📊" label="Roadmap Progress" value={dash?.roadmap_progress ?? 0} trend="On track" bg="rgba(139,92,246,0.12)" />
+            <StatCard icon="🏛️" label="Saved Universities" value={shortlistUnis.length} trend="↑ 2 this week" bg="rgba(14,165,233,0.12)" />
+            <StatCard icon="🎓" label="Saved Scholarships" value={shortlistScholarships.length} trend="↑ 1 this week" bg="rgba(245,166,35,0.12)" />
+            <StatCard icon="📊" label="Roadmap Progress" value={roadmapProgress} trend="On track" bg="rgba(139,92,246,0.12)" />
             <StatCard icon="👤" label="Profile Score" value={profilePct} trend="Keep going!" bg="rgba(16,185,129,0.12)" />
           </div>
 
