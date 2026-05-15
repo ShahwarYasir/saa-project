@@ -84,7 +84,7 @@ The backend auto-restores required demo users if they are removed during testing
 
 ## Known Limitations
 
-- The backend uses JSON file persistence for the academic demo, not MySQL.
+- The backend now uses MySQL/MariaDB through simple PHP PDO prepared statements.
 - The writing assistant uses a local generated draft/refine fallback, not a paid AI provider.
 - Email/SMS reminders, external application submission, visa guidance, and mobile app features are outside the accepted semester demo scope.
 - Final screenshots must still be captured manually from the browser for the presentation slides/report.

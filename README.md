@@ -1,6 +1,6 @@
 # Study Abroad Assistant (SAA)
 
-Study Abroad Assistant is a full-stack academic demo project that helps students plan international education applications. It includes a React student portal, a React admin portal, and a simple PHP API with JSON-file persistence for demo data.
+Study Abroad Assistant is a full-stack academic demo project that helps students plan international education applications. It includes a React student portal, a React admin portal, and a simple framework-free PHP API backed by MySQL through PDO prepared statements.
 
 The project has been integrated and tested end-to-end in live API mode. The frontend can run with mock data for UI-only work, or with the PHP backend for full-stack testing.
 
@@ -13,6 +13,7 @@ Verified areas:
 - Frontend development server starts successfully.
 - Backend PHP API starts successfully.
 - Frontend communicates with backend APIs in live mode.
+- MySQL schema and seed data work through XAMPP MySQL/MariaDB.
 - Student authentication and profile flows work.
 - University and scholarship recommendations work.
 - Shortlist, roadmap, templates, and writing assistant flows work.
@@ -23,7 +24,7 @@ Verified areas:
 
 Testing report:
 
-- [Fullstack_Testing_Report_No_Screenshots.md](Fullstack_Testing_Report_No_Screenshots.md)
+- [MYSQL_MIGRATION_AND_TESTING_REPORT.md](MYSQL_MIGRATION_AND_TESTING_REPORT.md)
 
 Note: Screenshots were not included in the testing report because the built-in browser screenshot endpoint was not exposed in the testing session. No fake screenshots were created.
 
@@ -87,10 +88,11 @@ Note: Screenshots were not included in the testing report because the built-in b
 
 - PHP 8.1+ recommended
 - Framework-free PHP API
-- JSON-file persistence
+- MySQL/MariaDB persistence
+- PDO prepared statements
 - HMAC JWT-style bearer authentication
 - No Composer required
-- No MySQL required for the demo build
+- No Laravel or PHP framework
 
 ## Requirements
 
@@ -98,6 +100,7 @@ Note: Screenshots were not included in the testing report because the built-in b
 - Node.js 18+
 - npm
 - PHP 8.1+
+- MySQL or MariaDB, such as XAMPP MySQL
 
 For Windows/XAMPP users, PHP may be available at:
 
@@ -112,9 +115,9 @@ If `php` is already available in PATH, use `php` directly.
 ```text
 saa-project/
 |-- backend/                         # PHP API
+|   |-- database/                    # MySQL schema, seed, setup notes
 |   |-- public/
 |   |-- src/
-|   |-- data/                        # Local JSON database is generated here
 |   |-- router.php
 |   |-- start-server.bat
 |   `-- README.md
@@ -126,7 +129,7 @@ saa-project/
 |   `-- README.md
 |-- docs/                            # API contract, setup guide, demo docs
 |-- scripts/                         # Smoke tests and full-stack evidence tests
-|-- Fullstack_Testing_Report_No_Screenshots.md
+|-- MYSQL_MIGRATION_AND_TESTING_REPORT.md
 `-- README.md
 ```
 
@@ -149,6 +152,11 @@ FRONTEND_URL=http://localhost:5173,http://127.0.0.1:5173
 JWT_SECRET=change_this_to_a_long_random_secret
 JWT_TTL_MINUTES=120
 AI_PROVIDER=none
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=saa_project
+DB_USERNAME=root
+DB_PASSWORD=
 ```
 
 For a demo or local semester project, the example values are enough. For any public deployment, change `JWT_SECRET`.
@@ -188,6 +196,31 @@ npm install
 ```
 
 The backend does not require Composer packages.
+
+## MySQL Setup
+
+Start MySQL from XAMPP, then import the schema:
+
+```powershell
+D:\xamp\mysql\bin\mysql.exe -u root --execute="SOURCE D:/SAA/saa-project/backend/database/schema.sql"
+```
+
+Seed demo data:
+
+```powershell
+D:\xamp\php\php.exe backend\database\seed.php
+```
+
+If `mysql` and `php` are available in PATH:
+
+```powershell
+mysql -u root --execute="SOURCE D:/SAA/saa-project/backend/database/schema.sql"
+php backend\database\seed.php
+```
+
+Detailed database setup:
+
+- [backend/database/README.md](backend/database/README.md)
 
 ## Run the Project
 
@@ -258,19 +291,23 @@ Email: admin@saa.local
 Password: Admin@12345
 ```
 
-The backend restores required demo users when the JSON database is initialized.
+The seed script creates required demo users and demo records.
 
 ## Database and Demo Data
 
-The backend stores demo data in:
+The backend stores demo data in MySQL:
 
 ```text
-backend/data/database.json
+saa_project
 ```
 
-This file is generated automatically on the first backend request. To reset local demo data, stop the backend server, delete `backend/data/database.json`, and start the backend again.
+To reset local demo data, run:
 
-Do not commit generated local evidence files or local database files unless they are intentionally needed for a handoff.
+```powershell
+D:\xamp\php\php.exe backend\database\seed.php
+```
+
+Do not commit generated local evidence files unless they are intentionally needed for a handoff.
 
 ## API Overview
 
@@ -331,7 +368,7 @@ Full API documentation:
 
 ### Full-Stack Evidence Test
 
-This is the best end-to-end verification command. It starts the backend and frontend, calls real APIs, checks validation, verifies JSON database changes, and writes local evidence files.
+This is the best end-to-end verification command. It starts the backend and frontend, calls real APIs, checks validation, verifies MySQL database changes, and writes local evidence files.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\fullstack-evidence-test.ps1
@@ -347,7 +384,7 @@ failed_validation=0
 Generated evidence is saved locally under:
 
 ```text
-docs/testing-evidence/
+docs/testing-evidence/mysql-migration/
 ```
 
 This folder is ignored by Git.
@@ -388,27 +425,30 @@ D:\xamp\php\php.exe -l backend\src\app.php
 - [docs/setup-guide.md](docs/setup-guide.md)
 - [docs/api-contract.md](docs/api-contract.md)
 - [docs/component-map.md](docs/component-map.md)
+- [backend/database/README.md](backend/database/README.md)
 - [docs/demo-script.md](docs/demo-script.md)
 - [docs/final-presentation-checklist.md](docs/final-presentation-checklist.md)
 - [docs/srs-acceptance-report.md](docs/srs-acceptance-report.md)
 - [frontend/handoff.md](frontend/handoff.md)
-- [Fullstack_Testing_Report_No_Screenshots.md](Fullstack_Testing_Report_No_Screenshots.md)
+- [MYSQL_MIGRATION_AND_TESTING_REPORT.md](MYSQL_MIGRATION_AND_TESTING_REPORT.md)
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
 | `php` is not recognized | Install PHP or use the XAMPP path `D:\xamp\php\php.exe`. |
+| MySQL connection failed | Start MySQL in XAMPP and confirm backend `.env` DB values. |
+| Unknown database `saa_project` | Import `backend/database/schema.sql`. |
 | Frontend cannot login | Confirm backend is running and `VITE_USE_MOCKS=false`. |
 | CORS error | Confirm `FRONTEND_URL` includes `http://localhost:5173` and `http://127.0.0.1:5173`. |
 | API returns unauthenticated | Log out, clear old local storage tokens, and login again. |
-| Need fresh demo data | Delete `backend/data/database.json` and restart the backend. |
+| Need fresh demo data | Run `D:\xamp\php\php.exe backend\database\seed.php`. |
 | Port already in use | Stop the old server process or run the server on another port and update `.env`. |
 | PowerShell blocks scripts | Run commands with `powershell -ExecutionPolicy Bypass -File ...`. |
 
 ## Known Limitations
 
-- The backend uses JSON-file persistence for demo and semester-project use.
+- The backend uses MySQL through simple PHP PDO, not Laravel.
 - The writing assistant uses a local generated text fallback, not a paid external AI service.
 - Email notifications, SMS notifications, visa services, payment flows, and external application submission are outside the current project scope.
 - The testing report uses logs, API responses, and database evidence because screenshot capture was unavailable in the test session.

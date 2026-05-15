@@ -115,17 +115,17 @@ export default function ProfileBuilderPage() {
   const gpaMode = w2('gpa_mode');
   const degLevel = w3('degree_level');
 
-  const step1Data = {};
-  const step2Data = {};
+  const step1Data = useRef({});
+  const step2Data = useRef({});
 
-  function onStep1(data) { Object.assign(step1Data, data); setStep(2); }
-  function onStep2(data) { Object.assign(step2Data, data); setStep(3); }
+  function onStep1(data) { step1Data.current = data; setStep(2); }
+  function onStep2(data) { step2Data.current = data; setStep(3); }
 
   async function onStep3(data) {
     setSaving(true);
     try {
       const payload = {
-        ...step1Data, ...step2Data,
+        ...step1Data.current, ...step2Data.current,
         degree_level: data.degree_level,
         preferred_countries: prefCountries,
         annual_budget_usd: budget,

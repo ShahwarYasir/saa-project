@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-const SAA_DATA_FILE = __DIR__ . '/../data/database.json';
+require_once __DIR__ . '/db.php';
 
 function saa_run(): void
 {
@@ -12,17 +12,17 @@ function saa_run(): void
         return;
     }
 
-    $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
-    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-    $db = saa_load_db();
-
     try {
+        $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+        $db = saa_load_db();
         saa_dispatch($method, $path, $db);
     } catch (Throwable $exception) {
+        error_log($exception->getMessage());
         saa_json([
             'success' => false,
-            'message' => 'Server error',
-            'errors' => ['server' => [$exception->getMessage()]],
+            'message' => $exception instanceof PDOException ? 'Database connection failed' : 'Server error',
+            'errors' => [],
         ], 500);
     }
 }
@@ -146,6 +146,12 @@ function saa_dispatch(string $method, string $path, array $db): void
         return;
     }
 
+    if ($method === 'GET' && preg_match('#^/api/templates/(\d+)/preview$#', $path, $matches)) {
+        saa_require_auth($db, 'student');
+        saa_template_preview($db, (int) $matches[1]);
+        return;
+    }
+
     if ($method === 'GET' && preg_match('#^/api/templates/(\d+)/download$#', $path, $matches)) {
         saa_require_auth($db, 'student');
         saa_template_download($db, (int) $matches[1]);
@@ -264,28 +270,6 @@ function saa_send_cors_headers(): void
     header('Access-Control-Max-Age: 86400');
 }
 
-function saa_env(string $key, string $default = ''): string
-{
-    static $values = null;
-
-    if ($values === null) {
-        $values = [];
-        $file = __DIR__ . '/../.env';
-        if (is_file($file)) {
-            foreach (file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
-                $line = trim($line);
-                if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
-                    continue;
-                }
-                [$name, $value] = explode('=', $line, 2);
-                $values[trim($name)] = trim(trim($value), "\"'");
-            }
-        }
-    }
-
-    return $values[$key] ?? ($_ENV[$key] ?? $default);
-}
-
 function saa_json(array $payload, int $status = 200): void
 {
     http_response_code($status);
@@ -315,19 +299,8 @@ function saa_input(): array
 
 function saa_load_db(): array
 {
-    if (!is_file(SAA_DATA_FILE)) {
-        $db = saa_seed_db();
-        saa_save_db($db);
-        return $db;
-    }
-
-    $content = file_get_contents(SAA_DATA_FILE);
-    $decoded = $content ? json_decode($content, true) : null;
-    if (!is_array($decoded)) {
-        return saa_seed_db();
-    }
-
-    [$db, $changed] = saa_ensure_demo_data($decoded);
+    $db = saa_mysql_load_db();
+    [$db, $changed] = saa_ensure_demo_data($db);
     if ($changed) {
         saa_save_db($db);
     }
@@ -336,12 +309,7 @@ function saa_load_db(): array
 
 function saa_save_db(array $db): void
 {
-    $dir = dirname(SAA_DATA_FILE);
-    if (!is_dir($dir)) {
-        mkdir($dir, 0777, true);
-    }
-
-    file_put_contents(SAA_DATA_FILE, json_encode($db, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), LOCK_EX);
+    saa_mysql_replace_db($db);
 }
 
 function saa_next_id(array $items): int
@@ -598,12 +566,21 @@ function saa_profile_for_user(array $db, array $user): array
         'full_name' => $user['full_name'],
         'email' => $user['email'],
         'phone' => $user['phone'] ?? '',
-    ], $profile);
+    ], $profile, [
+        'profile_completion' => saa_profile_completion($profile),
+    ]);
 }
 
 function saa_update_profile(array $db, array $user): void
 {
     $input = saa_input();
+    if (array_key_exists('gpa_value', $input) && !array_key_exists('gpa', $input)) {
+        $mode = strtolower(trim((string) ($input['gpa_mode'] ?? 'gpa')));
+        $input['gpa'] = $mode === 'percentage' && is_numeric($input['gpa_value'])
+            ? round(((float) $input['gpa_value']) / 25, 2)
+            : $input['gpa_value'];
+    }
+
     $errors = saa_validate_profile_input($input);
     if ($errors !== []) {
         saa_error('Validation failed', 422, $errors);
@@ -627,6 +604,25 @@ function saa_update_profile(array $db, array $user): void
         'ranking_preference',
     ];
 
+    $userUpdates = [];
+    foreach (['full_name', 'phone'] as $key) {
+        if (array_key_exists($key, $input)) {
+            $value = trim((string) $input[$key]);
+            if ($value !== '') {
+                $userUpdates[$key] = $value;
+            }
+        }
+    }
+    if ($userUpdates !== []) {
+        foreach ($db['users'] as $index => $row) {
+            if ((int) ($row['id'] ?? 0) === (int) $user['id']) {
+                $db['users'][$index] = array_merge($row, $userUpdates);
+                $user = array_merge($user, $userUpdates);
+                break;
+            }
+        }
+    }
+
     $profile = ['user_id' => (int) $user['id']];
     foreach ($allowed as $key) {
         if (array_key_exists($key, $input)) {
@@ -648,10 +644,12 @@ function saa_update_profile(array $db, array $user): void
     }
 
     saa_save_db($db);
+    $data = saa_profile_for_user($db, $user);
     saa_json([
         'success' => true,
         'message' => 'Profile updated successfully',
-        'data' => saa_profile_for_user($db, $user),
+        'data' => $data,
+        'profile_completion' => $data['profile_completion'],
     ]);
 }
 
@@ -870,6 +868,19 @@ function saa_shortlist_index(array $db, array $user): void
 function saa_validate_profile_input(array $input): array
 {
     $errors = [];
+    if (array_key_exists('full_name', $input)) {
+        saa_validate_text_field($errors, 'full_name', $input['full_name'], 120);
+        if (trim((string) $input['full_name']) === '') {
+            $errors['full_name'][] = 'Full name is required.';
+        }
+    }
+    if (array_key_exists('phone', $input)) {
+        $phone = trim((string) $input['phone']);
+        if ($phone !== '' && (strlen($phone) > 30 || !preg_match('/^[0-9+()\-\s]+$/', $phone))) {
+            $errors['phone'][] = 'Phone number format is invalid.';
+        }
+    }
+
     foreach ([
         'nationality',
         'current_country',
@@ -889,6 +900,10 @@ function saa_validate_profile_input(array $input): array
     saa_validate_numeric_field($errors, 'annual_budget_usd', $input, 0, null);
     saa_validate_numeric_field($errors, 'ielts_score', $input, 0, 9);
     saa_validate_numeric_field($errors, 'toefl_score', $input, 0, 120);
+    if (array_key_exists('gpa_value', $input)) {
+        $mode = strtolower(trim((string) ($input['gpa_mode'] ?? 'gpa')));
+        saa_validate_numeric_field($errors, 'gpa_value', $input, 0, $mode === 'percentage' ? 100 : 4);
+    }
 
     if (array_key_exists('preferred_countries', $input)) {
         foreach (saa_array_value($input['preferred_countries']) as $country) {
@@ -1083,15 +1098,39 @@ function saa_roadmap_update_milestone(array $db, array $user, int $id): void
     saa_error('Milestone not found', 404);
 }
 
-function saa_template_download(array $db, int $id): void
+function saa_find_template(array $db, int $id): ?array
 {
-    $template = null;
     foreach ($db['templates'] as $item) {
         if ((int) $item['id'] === $id) {
-            $template = $item;
-            break;
+            return $item;
         }
     }
+    return null;
+}
+
+function saa_template_preview(array $db, int $id): void
+{
+    $template = saa_find_template($db, $id);
+
+    if ($template === null) {
+        saa_error('Template not found', 404);
+        return;
+    }
+
+    saa_json([
+        'success' => true,
+        'data' => [
+            'id' => (int) $template['id'],
+            'name' => $template['name'],
+            'category' => $template['category'],
+            'content' => saa_template_body($template),
+        ],
+    ]);
+}
+
+function saa_template_download(array $db, int $id): void
+{
+    $template = saa_find_template($db, $id);
 
     if ($template === null) {
         saa_error('Template not found', 404);
@@ -1105,7 +1144,7 @@ function saa_template_download(array $db, int $id): void
     }
 
     $slug = strtolower(preg_replace('/[^A-Za-z0-9]+/', '-', $template['name']) ?: 'template');
-    $body = $template['name'] . "\n\n" . $template['description'] . "\n\nUse this structure as a starting point for your study abroad application.";
+    $body = saa_template_body($template);
 
     if ($format === 'pdf') {
         $content = saa_make_pdf($template['name'], $body);
@@ -1121,6 +1160,79 @@ function saa_template_download(array $db, int $id): void
     header('Content-Disposition: attachment; filename="' . $slug . '.docx"');
     header('Content-Length: ' . strlen($docx));
     echo $docx;
+}
+
+function saa_template_body(array $template): string
+{
+    $name = (string) $template['name'];
+    $sections = [
+        'Academic CV' => [
+            'Contact Information',
+            'Education: degree, institution, dates, GPA, thesis or capstone',
+            'Research Experience: project title, supervisor, methods, outcomes',
+            'Publications and Presentations',
+            'Teaching, Leadership, Awards, Skills, References',
+        ],
+        'Professional CV' => [
+            'Contact Information',
+            'Professional Summary tailored to the target role or program',
+            'Education and Certifications',
+            'Experience with measurable responsibilities and outcomes',
+            'Projects, Technical Skills, Leadership, Awards',
+        ],
+        'Personal Statement' => [
+            'Opening: a specific personal or academic turning point',
+            'Academic preparation and growth',
+            'Experiences that shaped your interests',
+            'Fit with the program and future contribution',
+            'Closing: mature, specific next step',
+        ],
+        'Statement of Purpose' => [
+            'Academic background and motivation',
+            'Research or professional interests',
+            'Relevant achievements and project evidence',
+            'Why this university and program',
+            'Career goals and expected contribution',
+        ],
+        'Scholarship Motivation Letter' => [
+            'Purpose of the scholarship request',
+            'Academic merit and resilience',
+            'Leadership, service, or community impact',
+            'Financial need and responsible plan',
+            'Future impact after graduation',
+        ],
+        'University Motivation Letter' => [
+            'Program and university fit',
+            'Academic preparation',
+            'Relevant projects or experience',
+            'Contribution to the university community',
+            'Career direction',
+        ],
+        'Reference Request Email' => [
+            'Subject: Recommendation request for [program/scholarship]',
+            'Polite greeting and context reminder',
+            'Specific deadline and submission method',
+            'Attached CV/transcript/SOP draft',
+            'Grateful closing and offer to provide details',
+        ],
+        'Follow-up Email' => [
+            'Subject: Follow-up regarding [application/interview/request]',
+            'Brief reminder of previous contact',
+            'One sentence of continued interest',
+            'Clear, polite request for an update',
+            'Professional closing',
+        ],
+        'Research Proposal' => [
+            'Title and research problem',
+            'Background and literature gap',
+            'Research questions or hypotheses',
+            'Methodology and feasibility',
+            'Expected contribution, timeline, references',
+        ],
+    ];
+
+    $lines = $sections[$name] ?? ['Purpose', 'Background', 'Key Evidence', 'Fit', 'Closing'];
+    return $name . "\n\n" . (string) ($template['description'] ?? '') . "\n\nSuggested structure:\n- " . implode("\n- ", $lines) . "\n\nCustomize the placeholders with your own achievements, target university, program details, dates, and measurable outcomes before submission.";
 }
 
 function saa_make_pdf(string $title, string $body): string
@@ -1163,38 +1275,55 @@ function saa_pdf_escape(string $value): string
 
 function saa_make_docx(string $title, string $body): string
 {
-    if (!class_exists('ZipArchive')) {
-        return $title . "\n\n" . $body;
-    }
-
-    $tmp = tempnam(sys_get_temp_dir(), 'saa_docx_');
-    $zip = new ZipArchive();
-    if ($tmp === false || $zip->open($tmp, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        return $title . "\n\n" . $body;
-    }
-    $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
-    $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
     $paragraphs = '';
     foreach (array_filter(array_map('trim', explode("\n", $body))) as $line) {
         $paragraphs .= '<w:p><w:r><w:t>' . htmlspecialchars($line, ENT_XML1) . '</w:t></w:r></w:p>';
     }
-    $zip->addFromString('word/document.xml', '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>' . htmlspecialchars($title, ENT_XML1) . '</w:t></w:r></w:p>' . $paragraphs . '</w:body></w:document>');
-    $zip->close();
-    $content = file_get_contents($tmp) ?: ($title . "\n\n" . $body);
-    unlink($tmp);
 
-    return $content;
+    return saa_make_zip([
+        '[Content_Types].xml' => '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',
+        '_rels/.rels' => '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>',
+        'word/document.xml' => '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>' . htmlspecialchars($title, ENT_XML1) . '</w:t></w:r></w:p>' . $paragraphs . '<w:sectPr/></w:body></w:document>',
+    ]);
+}
+
+function saa_make_zip(array $files): string
+{
+    $zip = '';
+    $central = '';
+    $offset = 0;
+
+    foreach ($files as $name => $content) {
+        $name = str_replace('\\', '/', (string) $name);
+        $content = (string) $content;
+        $crc = crc32($content);
+        $size = strlen($content);
+        $nameLength = strlen($name);
+
+        $local = pack('VvvvvvVVVvv', 0x04034b50, 20, 0, 0, 0, 0, $crc, $size, $size, $nameLength, 0) . $name . $content;
+        $zip .= $local;
+        $central .= pack('VvvvvvvVVVvvvvvVV', 0x02014b50, 20, 20, 0, 0, 0, 0, $crc, $size, $size, $nameLength, 0, 0, 0, 0, 0, $offset) . $name;
+        $offset += strlen($local);
+    }
+
+    return $zip . $central . pack('VvvvvVVv', 0x06054b50, 0, 0, count($files), count($files), strlen($central), strlen($zip), 0);
 }
 
 function saa_writing_generate(array $db, array $user): void
 {
     $input = saa_input();
-    $required = ['document_type', 'target_university', 'target_program', 'achievements', 'background'];
+    $required = ['document_type', 'target_university', 'target_program', 'achievements', 'why_university', 'career_goals'];
     $errors = [];
     foreach ($required as $field) {
         if (trim((string) ($input[$field] ?? '')) === '') {
             $errors[$field][] = 'This field is required.';
         }
+    }
+    if (!in_array((string) ($input['document_type'] ?? ''), ['sop', 'personal', 'motivation', 'cover'], true)) {
+        $errors['document_type'][] = 'Select a supported document type.';
+    }
+    if (array_key_exists('word_count', $input)) {
+        saa_validate_numeric_field($errors, 'word_count', $input, 250, 1500, true);
     }
     if ($errors !== []) {
         saa_error('Validation failed', 422, $errors);
@@ -1215,22 +1344,79 @@ function saa_writing_generate(array $db, array $user): void
     saa_save_db($db);
 
     unset($document['user_id'], $document['updated_at']);
-    saa_json(['success' => true, 'data' => $document]);
+    $document['title'] = saa_document_title((string) $input['document_type'], (string) $input['target_university']);
+    saa_json(['success' => true, 'message' => 'Document generated successfully', 'data' => $document], 201);
 }
 
 function saa_generate_document_text(array $input): string
 {
-    $type = ucwords(str_replace('_', ' ', (string) $input['document_type']));
-    $university = (string) $input['target_university'];
-    $program = (string) $input['target_program'];
-    $achievements = (string) $input['achievements'];
-    $background = (string) $input['background'];
+    $type = saa_document_type_label((string) $input['document_type']);
+    $university = saa_clean_phrase((string) $input['target_university']);
+    $program = saa_clean_phrase((string) $input['target_program']);
+    $achievements = saa_professionalize_input((string) $input['achievements']);
+    $why = saa_professionalize_input((string) $input['why_university']);
+    $goals = saa_professionalize_input((string) $input['career_goals']);
 
-    return "Draft {$type}\n\n"
-        . "I am excited to apply for {$program} at {$university}. My academic background and long-term goals have guided me toward this opportunity, and I believe the program matches both my preparation and my future direction.\n\n"
-        . "My background includes {$background}. These experiences helped me build discipline, curiosity, and a clear understanding of the field I want to pursue.\n\n"
-        . "Among my key achievements, {$achievements}. These accomplishments show my ability to learn independently, work with others, and follow a project through to completion.\n\n"
-        . "At {$university}, I hope to deepen my technical knowledge, contribute actively to the academic community, and prepare for work that creates practical value. I will revise this draft with specific course names, faculty interests, and personal examples before submission.";
+    return "{$type}\n\n"
+        . "Dear Admissions Committee,\n\n"
+        . "I am pleased to apply for the {$program} at {$university}. My academic journey has taught me to combine curiosity with discipline, and I am now seeking a rigorous environment where I can strengthen my technical foundation, contribute thoughtfully, and prepare for meaningful professional work.\n\n"
+        . "My preparation is shaped by {$achievements}. These experiences reflect resilience, persistence, and academic growth, particularly where setbacks became opportunities to improve my methods, rebuild confidence, and produce stronger outcomes. Through hackathons, projects, and repeated learning cycles, I have developed a practical mindset and the ability to keep progressing under pressure.\n\n"
+        . "{$university} appeals to me because {$why}. I am especially interested in joining a community that encourages exploration, independent learning, collaboration, and the practical application of knowledge. The {$program} aligns with my interest in building solutions that are technically sound and useful beyond the classroom.\n\n"
+        . "My long-term goal is to build a stable, internationally oriented career where I can apply my education responsibly, support ambitious projects, and continue growing across cultures and industries. {$goals}. I understand that graduate study requires maturity, focus, and consistent effort, and I am ready to bring those qualities to your program.\n\n"
+        . "Thank you for considering my application. I would be honored to contribute my determination, project experience, and willingness to learn to {$university}.\n\n"
+        . "Sincerely,\n[Your Name]";
+}
+
+function saa_document_type_label(string $type): string
+{
+    return [
+        'sop' => 'Statement of Purpose',
+        'personal' => 'Personal Statement',
+        'motivation' => 'Motivation Letter',
+        'cover' => 'Cover Letter',
+    ][$type] ?? ucwords(str_replace('_', ' ', $type));
+}
+
+function saa_document_title(string $type, string $university): string
+{
+    $suffix = trim($university) !== '' ? ' - ' . saa_clean_phrase($university) : '';
+    return saa_document_type_label($type) . $suffix;
+}
+
+function saa_clean_phrase(string $value): string
+{
+    $value = trim(strip_tags($value));
+    $value = preg_replace('/\s+/', ' ', $value) ?? $value;
+    return $value === '' ? 'the target institution' : $value;
+}
+
+function saa_professionalize_input(string $value): string
+{
+    $clean = saa_clean_phrase($value);
+    $lower = strtolower($clean);
+    $parts = [];
+
+    if (str_contains($lower, 'failed') || str_contains($lower, 'passed')) {
+        $parts[] = 'a record of resilience, persistence, and academic growth after facing setbacks and ultimately improving through sustained effort';
+    }
+    if (str_contains($lower, 'hackathon')) {
+        $parts[] = 'participation in hackathons that strengthened collaborative problem-solving and rapid prototyping skills';
+    }
+    if (str_contains($lower, 'project')) {
+        $parts[] = 'hands-on project work that connected classroom learning with practical implementation';
+    }
+    if (str_contains($lower, 'earn money') || str_contains($lower, 'travel') || str_contains($lower, 'enjoy')) {
+        $parts[] = 'an ambition to build financial independence, gain international exposure, and grow into a balanced professional life';
+    }
+    if (str_contains($lower, 'explore') || str_contains($lower, 'learn') || str_contains($lower, 'teach')) {
+        $parts[] = 'a desire to explore new ideas, learn from a strong academic community, and share knowledge with others';
+    }
+
+    if ($parts === []) {
+        return rtrim($clean, '.');
+    }
+
+    return implode(', and ', array_unique($parts));
 }
 
 function saa_writing_update(array $db, array $user, int $id): void
@@ -1955,6 +2141,26 @@ function saa_ensure_demo_data(array $db): array
     if (count($db['templates']) === 0) {
         $db['templates'] = $seed['templates'];
         $changed = true;
+    } else {
+        foreach ($seed['templates'] as $seedTemplate) {
+            $exists = false;
+            foreach ($db['templates'] as $index => $template) {
+                if ((int) ($template['id'] ?? 0) === (int) $seedTemplate['id']) {
+                    $db['templates'][$index] = array_merge($seedTemplate, $template, [
+                        'name' => $seedTemplate['name'],
+                        'description' => $seedTemplate['description'],
+                        'category' => $seedTemplate['category'],
+                        'format' => $seedTemplate['format'],
+                    ]);
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $db['templates'][] = $seedTemplate;
+                $changed = true;
+            }
+        }
     }
 
     return [$db, $changed];
@@ -2027,10 +2233,14 @@ function saa_seed_db(): array
         'documents' => [],
         'templates' => [
             ['id' => 1, 'name' => 'Academic CV', 'description' => 'A structured CV template designed for academic applications, highlighting education, research, and publications.', 'category' => 'CV', 'format' => ['pdf', 'docx']],
-            ['id' => 2, 'name' => 'Personal Statement', 'description' => 'A template for writing compelling personal statements for university admissions.', 'category' => 'Essay', 'format' => ['pdf', 'docx']],
-            ['id' => 3, 'name' => 'Statement of Purpose', 'description' => 'A structured SOP template with sections for background, motivation, goals, and fit.', 'category' => 'Essay', 'format' => ['pdf', 'docx']],
-            ['id' => 4, 'name' => 'Motivation Letter', 'description' => 'A formal motivation letter template for scholarship and university applications.', 'category' => 'Letter', 'format' => ['pdf', 'docx']],
-            ['id' => 5, 'name' => 'Reference Request Email', 'description' => 'A professional email template for requesting recommendation letters from professors.', 'category' => 'Email', 'format' => ['pdf', 'docx']],
+            ['id' => 2, 'name' => 'Professional CV', 'description' => 'A clean, ATS-friendly CV template designed for professional roles with clear sections.', 'category' => 'CV', 'format' => ['pdf', 'docx']],
+            ['id' => 3, 'name' => 'Personal Statement', 'description' => 'A template for writing compelling personal statements for university admissions.', 'category' => 'Essay', 'format' => ['pdf', 'docx']],
+            ['id' => 4, 'name' => 'Statement of Purpose', 'description' => 'A structured SOP template with sections for background, motivation, goals, and fit.', 'category' => 'Essay', 'format' => ['pdf', 'docx']],
+            ['id' => 5, 'name' => 'Scholarship Motivation Letter', 'description' => 'A formal motivation letter template for scholarship applications with impact-driven structure.', 'category' => 'Letter', 'format' => ['pdf', 'docx']],
+            ['id' => 6, 'name' => 'University Motivation Letter', 'description' => 'A professional letter template tailored for master\'s and PhD program applications.', 'category' => 'Letter', 'format' => ['pdf', 'docx']],
+            ['id' => 7, 'name' => 'Reference Request Email', 'description' => 'A professional email template for requesting recommendation letters from professors.', 'category' => 'Email', 'format' => ['pdf', 'docx']],
+            ['id' => 8, 'name' => 'Follow-up Email', 'description' => 'A post-interview or post-application follow-up email template to demonstrate continued interest.', 'category' => 'Email', 'format' => ['pdf', 'docx']],
+            ['id' => 9, 'name' => 'Research Proposal', 'description' => 'A structured research proposal template for PhD applications with a clear problem statement and methodology.', 'category' => 'Essay', 'format' => ['pdf', 'docx']],
         ],
     ];
 }

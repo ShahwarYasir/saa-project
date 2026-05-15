@@ -1,37 +1,36 @@
 # 🎓 SAA Frontend
-> "React frontend for Study Abroad Assistant — built by Dur-e-Shahwar"
+> "React frontend for Study Abroad Assistant"
 
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-7952B3?style=for-the-badge&logo=bootstrap)
-![Status](https://img.shields.io/badge/Status-Active-success?style=for-the-badge)
-![Mock Mode](https://img.shields.io/badge/Mock%20Mode-Enabled-F5A623?style=for-the-badge)
+
 
 ## Overview
-This is the frontend application for the Study Abroad Assistant, a platform designed to help students discover and apply to international universities and scholarships. It currently runs fully on mock data independently of the backend, allowing for complete UI/UX validation and feature demonstration. Built exclusively by Dur-e-Shahwar, the interface features a premium design system with dynamic micro-animations and a responsive layout.
+This is the frontend application for the Study Abroad Assistant, a platform designed to help students discover and apply to international universities and scholarships. It currently runs fully on mock data independently of the backend, allowing for complete UI/UX validation and feature demonstration. The interface features a premium design system with dynamic micro-animations and a responsive layout.
 
 ## Screenshots
 
-> 📸 Screenshots captured from the live mock frontend
+
 
 ### 🏠 Public Pages
 | Page | Preview |
 |------|---------|
-| Homepage Hero | ![Homepage](docs/screenshots/homepage.png) |
-| Login Page | ![Login](docs/screenshots/login.png) |
-| Register Page | ![Register](docs/screenshots/register.png) |
+| Homepage Hero | ![Homepage](docs/screenshots/Homepage.PNG) |
+| Login Page | ![Login](docs/screenshots/Login.PNG) |
+| Register Page | ![Register](docs/screenshots/Register.PNG) |
 
 ### 📊 Student Pages
 | Page | Preview |
 |------|---------|
-| Dashboard | ![Dashboard](docs/screenshots/dashboard.png) |
+| Dashboard | ![Dashboard](docs/screenshots/Dashboard.PNG) |
 | Profile Builder | ![Profile](docs/screenshots/profile.png) |
-| Universities | ![Universities](docs/screenshots/universities.png) |
-| Scholarships | ![Scholarships](docs/screenshots/scholarships.png) |
-| Shortlist | ![Shortlist](docs/screenshots/shortlist.png) |
+| Universities | ![Universities](docs/screenshots/Universities.PNG) |
+| Scholarships | ![Scholarships](docs/screenshots/Scholarships.PNG) |
+| Shortlist | ![Shortlist](docs/screenshots/Shortlist.PNG) |
 | Writing Assistant | ![Writing](docs/screenshots/writing-assistant.png) |
-| Roadmap | ![Roadmap](docs/screenshots/roadmap.png) |
-| Templates | ![Templates](docs/screenshots/templates.png) |
+| Roadmap | ![Roadmap](docs/screenshots/Roadmap.PNG) |
+| Templates | ![Templates](docs/screenshots/Templates.PNG) |
 | How To Apply | ![HowToApply](docs/screenshots/how-to-apply.png) |
 
 ### 🔐 Admin Pages
@@ -43,8 +42,6 @@ This is the frontend application for the Study Abroad Assistant, a platform desi
 | Manage Scholarships | ![Manage Scholarships](docs/screenshots/admin-scholarships.png) |
 | Manage Students | ![Students](docs/screenshots/admin-students.png) |
 
-> **Note on screenshots:**
-> To add screenshots: run `npm run dev`, screenshot each page, save to `frontend/docs/screenshots/` with the filenames above, then push to frontend/person1 branch.
 
 ## Pages
 
