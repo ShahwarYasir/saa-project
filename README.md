@@ -18,9 +18,15 @@ An AI-powered university and scholarship guidance platform for students seeking 
 - react-hook-form + yup
 
 ### Backend
-- PHP 8.5 + Laravel 13
-- MySQL 8
-- JWT Authentication
+- Simple PHP 8.x API
+- JSON file persistence for demo data
+- HMAC JWT-style bearer authentication
+
+## Current Status
+
+Backend phase is complete and ready for frontend integration. The simple PHP API implements the agreed SRS/API scope and has passed the SRS acceptance smoke test.
+
+Frontend final polishing and presentation screenshots are pending with the frontend developer.
 
 ## Getting Started
 
@@ -37,21 +43,24 @@ npm run dev
 ```bash
 cd backend
 cp .env.example .env
-composer install
-php artisan key:generate
-php artisan jwt:secret
-php artisan migrate --seed
-php artisan serve
+php -S 127.0.0.1:8000 router.php
 # API runs at http://127.0.0.1:8000
+```
+
+On this machine you can also use:
+
+```bash
+cd backend
+start-server.bat
 ```
 
 ## Project Structure
 
-```
+```text
 saa-project/
-├── docs/          # API contract, component map, setup guide
-├── backend/       # Laravel API (Person 2)
-└── frontend/      # React SPA (Person 1)
+|-- docs/          # API contract, component map, setup guide
+|-- backend/       # Simple PHP API (Person 2)
+`-- frontend/      # React SPA (Person 1)
 ```
 
 ## Branches
@@ -65,7 +74,24 @@ saa-project/
 
 ## Mock Mode
 
-The frontend runs in mock mode by default (`VITE_USE_MOCKS=true`). All pages are fully functional with realistic mock data — no backend needed.
+The frontend runs in mock mode by default (`VITE_USE_MOCKS=true`). All pages are fully functional with realistic mock data, no backend needed.
+
+For integrated testing and final demo, use real API mode:
+
+```text
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_USE_MOCKS=false
+```
+
+## Acceptance Test
+
+Run the SRS smoke test with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\srs-acceptance-smoke.ps1
+```
+
+See `docs/srs-acceptance-report.md` and `docs/final-presentation-checklist.md`.
 
 ### Test Credentials
 - **Student**: `student@test.com` / `Test@1234`

@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { useContext } from 'react';
+import { useState, useRef, useEffect, useContext } from 'react';
 import { ToastContext } from '../../context/ToastContext';
 
 const NAV_ITEMS = [

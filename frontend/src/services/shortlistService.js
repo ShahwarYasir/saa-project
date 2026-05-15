@@ -40,7 +40,7 @@ export async function removeFromShortlist(entityType, entityId) {
     else mockShortlist.scholarships = mockShortlist.scholarships.filter(id => id !== entityId);
     return { success: true, message: 'Removed from shortlist' };
   }
-  return apiRequest(`/shortlist/${entityId}`, { method: 'DELETE' });
+  return apiRequest(`/shortlist/${entityId}?entity_type=${entityType}`, { method: 'DELETE' });
 }
 
 export function isInShortlist(entityType, entityId) {

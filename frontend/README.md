@@ -15,6 +15,13 @@ npm run dev
 
 App runs at http://localhost:5173
 
+For this integrated phase, use:
+
+```text
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_USE_MOCKS=false
+```
+
 ## Mock Mode
 
 Set `VITE_USE_MOCKS=true` in `.env` to run with mock data (no backend needed).

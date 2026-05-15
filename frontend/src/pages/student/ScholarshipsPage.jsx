@@ -35,7 +35,7 @@ function ScholarshipCard({ sch, saved, onToggleSave }) {
   const grad = COVERAGE_GRAD[sch.coverage] || COVERAGE_GRAD['Partial Funding'];
   const flag = COUNTRY_FLAGS[sch.funding_country] || '🌍';
   const days = daysLeft(sch.deadline);
-  const initials = sch.provider.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase();
+  const initials = (sch.provider || '').split(' ').map(w => w?.[0] || '').slice(0,2).join('').toUpperCase();
 
   return (
     <div className="saa-card" style={{ overflow: 'hidden', transition: 'var(--saa-transition)', display: 'flex', flexDirection: 'column' }}
@@ -61,11 +61,11 @@ function ScholarshipCard({ sch, saved, onToggleSave }) {
 
         {/* Eligibility tags */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-          {sch.degree_levels.map(dl => (
+          {(sch.degree_levels || []).map(dl => (
             <span key={dl} style={{ fontSize: 10, background: '#EFF6FF', color: '#1D4ED8', borderRadius: 99, padding: '2px 8px', fontWeight: 600 }}>{dl}</span>
           ))}
-          {sch.eligible_nationalities[0] !== 'All' && (
-            <span style={{ fontSize: 10, background: '#F0FDF4', color: '#15803D', borderRadius: 99, padding: '2px 8px' }}>{sch.eligible_nationalities.slice(0,2).join(', ')}</span>
+          {sch.eligible_nationalities?.[0] !== 'All' && (
+            <span style={{ fontSize: 10, background: '#F0FDF4', color: '#15803D', borderRadius: 99, padding: '2px 8px' }}>{(sch.eligible_nationalities || []).slice(0,2).join(', ')}</span>
           )}
         </div>
 

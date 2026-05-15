@@ -20,7 +20,7 @@ const COUNTRY_FLAGS = {
 };
 
 const COUNTRIES = ['Germany','Canada','United Kingdom','United States','Australia','Turkey'];
-const DEGREES = ["Bachelor's","Master's","PhD"];
+const DEGREES = ["Bachelor", "Master", "PhD"];
 
 function Shimmer() {
   return (
@@ -73,10 +73,10 @@ function UniversityCard({ uni, saved, onToggleSave }) {
           <i className="bi bi-geo-alt-fill" style={{ color: 'var(--saa-danger)', fontSize: 11 }} />{uni.city}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
-          {uni.programs.slice(0, 2).map(p => (
+          {(uni.programs || []).slice(0, 2).map(p => (
             <span key={p} style={{ fontSize: 10, background: 'var(--saa-navy)', color: '#fff', borderRadius: 99, padding: '2px 8px' }}>{p}</span>
           ))}
-          {uni.programs.length > 2 && <span style={{ fontSize: 10, color: 'var(--saa-text-muted)' }}>+{uni.programs.length - 2} more</span>}
+          {(uni.programs || []).length > 2 && <span style={{ fontSize: 10, color: 'var(--saa-text-muted)' }}>+{(uni.programs || []).length - 2} more</span>}
         </div>
 
         {/* Stats */}
@@ -130,8 +130,8 @@ export default function UniversitiesPage() {
     let res = [...universities];
     if (search) res = res.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.city.toLowerCase().includes(search.toLowerCase()));
     if (selCountries.length) res = res.filter(u => selCountries.includes(u.country));
-    if (selDegrees.length) res = res.filter(u => u.degree_levels.some(d => selDegrees.includes(d)));
-    res = res.filter(u => u.tuition_fee_usd <= maxBudget);
+    if (selDegrees.length) res = res.filter(u => (u.degree_levels || []).some(d => selDegrees.includes(d)));
+    res = res.filter(u => (u.tuition_fee_usd || 0) <= maxBudget);
     res = res.filter(u => u.gpa_requirement >= minGpa);
     res.sort((a, b) => {
       if (sortBy === 'match_score') return b.match_score - a.match_score;

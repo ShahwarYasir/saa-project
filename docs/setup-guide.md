@@ -2,102 +2,85 @@
 
 ## Prerequisites
 
-- **Node.js** 18+ (for frontend)
-- **PHP** 8.5+ (for backend)
-- **Composer** 2+ (for backend)
-- **MySQL** 8+ (for backend)
-- **Git** (version control)
+- Node.js 18+ for the React frontend
+- PHP 8.1+ for the simple PHP backend
+- Git
 
----
+No Composer, Laravel, or MySQL setup is required for the current backend phase.
 
 ## Frontend Setup
 
-### 1. Navigate to frontend directory
 ```bash
 cd frontend
-```
-
-### 2. Copy environment file
-```bash
 cp .env.example .env
-```
-
-### 3. Install dependencies
-```bash
 npm install
-```
-
-### 4. Start development server
-```bash
 npm run dev
 ```
 
-App runs at **http://localhost:5173**
+The app runs at:
 
-### 5. Mock Mode
-By default, `VITE_USE_MOCKS=true` in `.env`. This means all API calls return mock data — no backend needed.
+```text
+http://localhost:5173
+```
 
-### Test Credentials (Mock Mode)
-- **Student:** student@test.com / Test@1234
-- **Admin:** admin@saa.local / Admin@12345
+Mock mode is enabled by default:
 
-### Switching to Real API
-Set `VITE_USE_MOCKS=false` in `.env` and ensure `VITE_API_BASE_URL` points to the running Laravel backend.
-
----
+```text
+VITE_USE_MOCKS=true
+```
 
 ## Backend Setup
 
-### 1. Navigate to backend directory
 ```bash
 cd backend
-```
-
-### 2. Install PHP dependencies
-```bash
-composer install
-```
-
-### 3. Configure environment
-```bash
 cp .env.example .env
-php artisan key:generate
-php artisan jwt:secret
+php -S 127.0.0.1:8000 router.php
 ```
 
-### 4. Create MySQL database
-```sql
-CREATE DATABASE saa_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+The API runs at:
+
+```text
+http://127.0.0.1:8000/api
 ```
 
-### 5. Run migrations and seeders
-```bash
-php artisan migrate --seed
-```
-
-### 6. Start server
-```bash
-php artisan serve
-```
-
-API runs at **http://127.0.0.1:8000**
-
----
+The backend creates `backend/data/database.json` automatically on first request.
 
 ## Connecting Frontend to Backend
 
-1. Set `VITE_USE_MOCKS=false` in `frontend/.env`
-2. Ensure `VITE_API_BASE_URL=http://127.0.0.1:8000/api`
-3. Configure CORS in Laravel to allow `http://localhost:5173`
-4. Restart frontend dev server
+Set these values in `frontend/.env`:
 
----
+```text
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_USE_MOCKS=false
+```
+
+Restart the frontend dev server after changing `.env`.
+
+## Demo Credentials
+
+- Student: `student@test.com` / `Test@1234`
+- Admin: `admin@saa.local` / `Admin@12345`
+
+## Acceptance Testing
+
+Run the SRS acceptance smoke test from the project root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\srs-acceptance-smoke.ps1
+```
+
+Run the frontend production build:
+
+```powershell
+cd frontend
+npm.cmd run build
+```
 
 ## Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| npm install fails | Delete `node_modules` and `package-lock.json`, then retry |
-| CORS errors | Check Laravel CORS config allows frontend URL |
-| JWT errors | Run `php artisan jwt:secret` |
-| Database connection | Verify MySQL credentials in `.env` |
+| `php` is not recognized | Install PHP or XAMPP and add PHP to PATH |
+| CORS errors | Confirm the backend `.env` has `FRONTEND_URL=http://localhost:5173,http://127.0.0.1:5173` |
+| Login fails after changing `JWT_SECRET` | Log out in the browser and sign in again |
+| Need fresh demo data | Delete `backend/data/database.json`; it will be recreated on the next API request |
