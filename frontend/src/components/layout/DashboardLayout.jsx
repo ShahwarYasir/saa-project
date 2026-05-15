@@ -101,20 +101,24 @@ export default function DashboardLayout({ children, pageTitle }) {
         </nav>
 
         {/* Footer */}
-        <div className="saa-sidebar-footer">
+        <div className="saa-sidebar-footer" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <button
-            className="w-100 text-start"
             style={{
               background: 'var(--saa-gold, #F5A623)',
               color: '#0A1628',
               borderRadius: 10,
               padding: '10px 20px',
               fontWeight: 700,
-              width: 'calc(100% - 32px)',
-              margin: '12px 16px',
+              width: '100%',
+              maxWidth: 'calc(100% - 32px)',
+              margin: '12px 0',
               border: 'none',
               cursor: 'pointer',
               transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
             }}
             onMouseEnter={e => {
               e.currentTarget.style.background = 'var(--saa-navy, #0A1628)';

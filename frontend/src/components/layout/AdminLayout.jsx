@@ -248,6 +248,5 @@ export default function AdminLayout({ children, pageTitle }) {
         </div>
       )}
       </div>
-    </div>
   );
 }
