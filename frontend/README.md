@@ -16,9 +16,9 @@ This is the frontend application for the Study Abroad Assistant, a platform desi
 ### 🏠 Public Pages
 | Page | Preview |
 |------|---------|
-| Homepage Hero | ![Homepage](docs/screenshots/Homepage.png) |
-| Login Page | ![Login](docs/screenshots/Login.png) |
-| Register Page | ![Register](docs/screenshots/Register.png) |
+| Homepage Hero | ![Homepage](docs/screenshots/Homepage.PNG) |
+| Login Page | ![Login](docs/screenshots/Login.PNG) |
+| Register Page | ![Register](docs/screenshots/Register.PNG) |
 
 ### 📊 Student Pages
 | Page | Preview |
