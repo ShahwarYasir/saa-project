@@ -1,113 +1,94 @@
 # SAA Demo Script
 
-Use this script to walk through all features during your project presentation.
+Use this script to walk through all features during your project presentation in real API mode.
 
----
+## Before The Demo
 
-## 1. Home Page (/)
-- Show the hero section with "Your Gateway to Global Education"
-- Point out the 4 feature cards
-- Click "Get Started Free" → goes to Register
+1. Start the PHP backend:
 
-## 2. Registration (/register)
-- Fill in dummy data and show inline validation
-- Show password requirements (uppercase, number, special char)
-- Submit → redirected to Login with success toast
+```bash
+cd backend
+start-server.bat
+```
 
-## 3. Student Login (/login)
-- Enter: **student@test.com** / **Test@1234**
-- Click Sign In → redirected to Dashboard
+2. Start the React frontend in another terminal:
 
-## 4. Dashboard (/dashboard)
-- Show 4 stat cards (Universities, Scholarships, Profile %, Roadmap %)
-- Show Quick Actions panel
-- Show Recent Activity list
+```bash
+cd frontend
+npm.cmd run dev
+```
 
-## 5. Profile Builder (/profile)
-- Show the live completion percentage bar
-- Fill in a few fields — watch the bar update in real-time
-- Show the multi-select for Preferred Countries
-- Click Save Profile
+3. Confirm `frontend/.env` has:
 
-## 6. Universities (/universities)
-- Show the filter sidebar
-- Filter by Country: Germany — watch results update
-- Click heart button on a university card (show save toggle)
-- Point out: ranking badge, match score, tuition, GPA requirement
+```text
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_USE_MOCKS=false
+```
 
-## 7. Scholarships (/scholarships)
-- Show filter by Coverage: "Fully Funded"
-- Point out: eligibility, deadline, coverage badge
-- Click "Apply" button on a card → opens external link
+## Demo Credentials
 
-## 8. Shortlist (/shortlist)
-- Show saved universities tab
-- Show saved scholarships tab
-- Click "How to Apply" on a saved university
-- Click Remove button
+- Student: `student@test.com` / `Test@1234`
+- Admin: `admin@saa.local` / `Admin@12345`
 
-## 9. How to Apply (/how-to-apply/university/1)
-- Show the structured guide sections
-- Walk through the document checklist
-- Show step-by-step process
-- Show tips section
-- Click "Visit Official Application Portal"
+## Walkthrough
 
-## 10. Writing Assistant (/writing-assistant)
-- **Step 1:** Select "Statement of Purpose"
-- **Step 2:** Fill in context form (target university, program, etc.)
-- **Step 3:** Show generated document
-- **IMPORTANT:** Point out the AI disclaimer box
-- Show Copy and Download buttons
-- Show Refine feature
+1. Home Page `/`
+Show the hero section, feature cards, and navigation to login/register.
 
-## 11. Templates (/templates)
-- Show the 5 template cards
-- Click PDF download → "coming soon" toast
-- Explain these will be real downloads when backend is ready
+2. Registration `/register`
+Fill dummy student data, show inline validation, and register a new account.
 
-## 12. Roadmap (/roadmap)
-- Show the progress bar with milestone counts
-- Change a milestone status from "Not Started" to "In Progress"
-- Watch the timeline indicator update
-- Change to "Done" — progress bar updates live
+3. Student Login `/login`
+Use `student@test.com` / `Test@1234`, then show redirect to dashboard.
 
-## 13. Logout
-- Click Logout in sidebar → redirected to Login
+4. Dashboard `/dashboard`
+Show saved universities, saved scholarships, profile completion, roadmap progress, and recent activity loaded from PHP API.
 
-## 14. Admin Login (/admin/login)
-- Enter: **admin@saa.local** / **Admin@12345**
-- Show the default credentials hint
+5. Profile Builder `/profile`
+Edit profile fields, preferred countries, IELTS/GPA, and save. Mention that data persists in `backend/data/database.json`.
 
-## 15. Admin Dashboard (/admin)
-- Show stats: Total Students, Universities, Scholarships
-- Show recent registrations table
+6. Universities `/universities`
+Filter by Germany, show match scores, and save/remove a university from shortlist.
 
-## 16. Manage Universities (/admin/universities)
-- Show search functionality
-- Click "Add University" → show modal form
-- Click Edit on a row → show pre-filled form
-- Click Delete → confirm dialog
+7. Scholarships `/scholarships`
+Filter by coverage or country, show eligibility details, and save/remove a scholarship.
 
-## 17. Manage Scholarships (/admin/scholarships)
-- Same as universities — show Add/Edit/Delete
+8. Shortlist `/shortlist`
+Show saved university and scholarship tabs. Remove one item and show the list updates.
 
-## 18. Manage Students (/admin/students)
-- Show student table with status column
-- Toggle activate/deactivate
-- Show search by name/email
+9. How To Apply `/how-to-apply/university/1`
+Show required documents, steps, deadlines, tips, and the official portal link.
 
-## 19. 404 Page
-- Navigate to /anything-random
-- Show the styled 404 page
+10. Writing Assistant `/writing-assistant`
+Select a document type, fill context, generate a draft, show the AI disclaimer, then refine it.
 
----
+11. Templates `/templates`
+Download a PDF or DOCX template from the PHP backend.
 
-## Key Points to Highlight
-- ✅ All 17 pages fully functional with mock data
-- ✅ No backend dependency for demo
-- ✅ 35 API endpoints documented for backend team
-- ✅ Responsive design — show on mobile width
-- ✅ Form validation with inline errors
-- ✅ AI disclaimer prominently displayed
-- ✅ Clean, professional academic theme
+12. Roadmap `/roadmap`
+Change milestone statuses and show progress updates.
+
+13. Admin Login `/admin/login`
+Use `admin@saa.local` / `Admin@12345`.
+
+14. Admin Dashboard `/admin`
+Show total students, universities, scholarships, active sessions, and recent registrations.
+
+15. Manage Universities `/admin/universities`
+Search, add, edit, and delete a university.
+
+16. Manage Scholarships `/admin/scholarships`
+Search, add, edit, and delete a scholarship.
+
+17. Manage Students `/admin/students`
+Toggle active/inactive status and delete a test student if needed.
+
+18. 404 Page
+Navigate to `/anything-random` and show the not found page.
+
+## Key Points To Highlight
+
+- React frontend is integrated with a simple PHP API.
+- No Laravel, Composer, or MySQL is required for this phase.
+- Auth, student pages, admin pages, downloads, shortlist, and writing assistant are working.
+- Demo data is persisted locally in `backend/data/database.json`.

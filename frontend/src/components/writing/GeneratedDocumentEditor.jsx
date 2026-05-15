@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import Button from '../common/Button';
 import { ToastContext } from '../../context/ToastContext';
 
@@ -6,6 +6,10 @@ export default function GeneratedDocumentEditor({ document, onRefine, refining =
   const [content, setContent] = useState(document?.content || '');
   const [refineInstructions, setRefineInstructions] = useState('');
   const toast = useContext(ToastContext);
+
+  useEffect(() => {
+    setContent(document?.content || '');
+  }, [document?.id, document?.content]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content).then(() => toast.success('Copied to clipboard!')).catch(() => toast.error('Failed to copy'));

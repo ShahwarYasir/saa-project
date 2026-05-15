@@ -1,34 +1,58 @@
-# SAA Backend — Laravel API
+# SAA Backend - Simple PHP API
 
-This directory will contain the Laravel 13 backend API for the Study Abroad Assistant.
+This backend is a framework-free PHP API for the Study Abroad Assistant React frontend. It replaces the earlier Laravel handoff while keeping the same `/api/...` routes and JSON response shapes.
 
-## Owner
-**Dur-e-Shahwar** — Backend Developer
+## Requirements
 
-## Tech Stack
-- PHP 8.5
-- Laravel 13
-- MySQL 8
-- JWT Authentication (tymon/jwt-auth or Laravel Sanctum)
+- PHP 8.1+ recommended
+- No Composer packages required
+- No MySQL required for the demo build
 
-## Setup Instructions
+The API stores demo data in `backend/data/database.json`, which is generated automatically on the first request.
 
-1. Install PHP 8.5 and Composer
-2. Install MySQL 8 and create database `saa_db`
-3. Copy `.env.example` to `.env`
-4. Run:
-```bash
-composer install
-php artisan key:generate
-php artisan jwt:secret
-php artisan migrate --seed
-php artisan serve
+## Backend Status
+
+Complete for the current SRS/demo phase. The backend covers auth, student flows, recommendations, shortlist, guide, roadmap, templates, writing assistant fallback, and admin CRUD.
+
+Acceptance command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ..\scripts\srs-acceptance-smoke.ps1
 ```
 
-## API Documentation
+## Run Locally
 
-See `docs/api-contract.md` for the complete API contract with all 35 endpoints.
+```bash
+cd backend
+copy .env.example .env
+php -S 127.0.0.1:8000 router.php
+```
 
-## CORS Configuration
+API base URL:
 
-The backend must allow requests from `http://localhost:5173` (frontend dev server).
+```text
+http://127.0.0.1:8000/api
+```
+
+Frontend integration:
+
+```text
+VITE_API_BASE_URL=http://127.0.0.1:8000/api
+VITE_USE_MOCKS=false
+```
+
+## Demo Credentials
+
+- Student: `student@test.com` / `Test@1234`
+- Admin: `admin@saa.local` / `Admin@12345`
+
+## Implemented Areas
+
+- Student/admin login with HMAC JWT-style bearer tokens
+- Student registration, profile, dashboard, recommendations, shortlist, guides, roadmap, templates, and writing assistant
+- Admin dashboard, university CRUD, scholarship CRUD, and student status/delete actions
+- CORS for the Vite dev server
+
+## Notes
+
+This is intentionally simple PHP for semester/demo use. For production, move persistence to MySQL/PDO, rotate `JWT_SECRET`, and disable debug error details.

@@ -1,6 +1,7 @@
 import { apiRequest } from './apiClient';
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const mockTemplates = [
   { id: 1, name: 'Academic CV', description: 'A structured CV template designed for academic applications, highlighting education, research, and publications.', category: 'CV', format: ['pdf', 'docx'] },
@@ -23,5 +24,27 @@ export async function downloadTemplate(id, format) {
     await new Promise(r => setTimeout(r, 300));
     throw { status: 501, message: 'Template downloads coming soon!' };
   }
-  return apiRequest(`/templates/${id}/download?format=${format}`);
+  const token = localStorage.getItem('saa_access_token');
+  const response = await fetch(`${API_BASE_URL}/templates/${id}/download?format=${format}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw { status: response.status, message: data.message || 'Download failed', errors: data.errors || {} };
+  }
+
+  const blob = await response.blob();
+  const disposition = response.headers.get('Content-Disposition') || '';
+  const match = disposition.match(/filename="?([^"]+)"?/i);
+  const filename = match?.[1] || `template.${format}`;
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+  return { success: true };
 }
