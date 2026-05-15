@@ -75,7 +75,7 @@ export default function RoadmapPage() {
     setGenerating(true);
     try {
       const res = await generateRoadmap(`${season} ${year}`);
-      setMilestones(res.data.milestones.map(m => ({ ...m })));
+      setMilestones(res.data.milestones.map(m => ({ ...m, status: 'Not Started' })));
       toast?.success('Roadmap generated! All milestones reset.');
     } catch { toast?.error('Failed to generate roadmap'); }
     finally { setGenerating(false); }

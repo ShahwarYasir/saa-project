@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { mockUniversities } from '../../mocks/mockUniversities';
 import { mockScholarships } from '../../mocks/mockScholarships';
@@ -66,8 +66,15 @@ export default function HowToApplyPage() {
         { label: 'Result Announcement', date: item?.deadline ? new Date(new Date(item.deadline).getTime() + 60*24*60*60*1000).toISOString().slice(0,10) : 'N/A', color: 'var(--saa-success)' },
       ];
 
+  const navigate = useNavigate();
+
   return (
     <DashboardLayout pageTitle="How to Apply">
+      <button onClick={() => navigate(-1)} style={{
+        background: '#fff', border: '1.5px solid #E2E8F0', borderRadius: 10, padding: '8px 16px', fontSize: 14, fontWeight: 600, color: '#1E293B', marginBottom: 16, cursor: 'pointer'
+      }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--saa-gold, #F5A623)'; e.currentTarget.style.color = 'var(--saa-gold, #F5A623)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.color = '#1E293B'; }}>
+        ← Back
+      </button>
       {!item ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--saa-text-muted)' }}>
           <div style={{ fontSize: 64 }}>🔍</div>

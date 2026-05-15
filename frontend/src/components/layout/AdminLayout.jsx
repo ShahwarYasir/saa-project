@@ -18,6 +18,7 @@ export default function AdminLayout({ children, pageTitle }) {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropOpen, setProfileDropOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const dropRef = useRef(null);
 
   const derivedTitle =
@@ -116,7 +117,7 @@ export default function AdminLayout({ children, pageTitle }) {
           <button
             className="saa-sidebar-link w-100 text-start"
             style={{ color: 'rgba(255,255,255,0.45)', marginBottom: '0.75rem' }}
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
           >
             <i className="bi bi-box-arrow-right" />
             <span>Logout</span>
@@ -232,6 +233,20 @@ export default function AdminLayout({ children, pageTitle }) {
         <main className="saa-dashboard-content">
           {children}
         </main>
+      </div>
+      {showLogoutConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 'min(100%, 380px)', background: '#fff', borderRadius: 16, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 40, lineHeight: 1, marginBottom: 16 }}>🚪</div>
+            <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Logout?</div>
+            <div style={{ color: '#475569', marginBottom: 24 }}>Are you sure you want to logout of the admin panel?</div>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button onClick={() => setShowLogoutConfirm(false)} style={{ background: 'transparent', border: '1.5px solid #CBD5E1', color: '#475569', borderRadius: 12, padding: '10px 18px', cursor: 'pointer', minWidth: 120 }}>Cancel</button>
+              <button onClick={() => { setShowLogoutConfirm(false); handleLogout(); }} style={{ background: '#0A1628', color: '#fff', border: 'none', borderRadius: 12, padding: '10px 18px', cursor: 'pointer', minWidth: 120 }}>Yes, Logout</button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   );
