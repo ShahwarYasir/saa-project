@@ -1,103 +1,49 @@
-/* ===== SAA Design Tokens ===== */
 :root {
-  /* Primary Colors */
-  --saa-navy: #1a3a5c;
-  --saa-navy-light: #2a5a8c;
-  --saa-navy-dark: #0f2440;
-  --saa-navy-50: rgba(26, 58, 92, 0.05);
-  --saa-navy-100: rgba(26, 58, 92, 0.1);
-  --saa-navy-200: rgba(26, 58, 92, 0.2);
-
-  /* Accent Colors */
-  --saa-gold: #f0a500;
-  --saa-gold-light: #ffc947;
-  --saa-gold-dark: #c48800;
-  --saa-gold-50: rgba(240, 165, 0, 0.08);
-  --saa-gold-100: rgba(240, 165, 0, 0.15);
-
-  /* Semantic Colors */
-  --saa-success: #22c55e;
-  --saa-success-light: #dcfce7;
-  --saa-warning: #f59e0b;
-  --saa-warning-light: #fef3c7;
-  --saa-danger: #ef4444;
-  --saa-danger-light: #fee2e2;
-  --saa-info: #3b82f6;
-  --saa-info-light: #dbeafe;
-
-  /* Neutral Colors */
-  --saa-white: #ffffff;
-  --saa-gray-50: #f8fafc;
-  --saa-gray-100: #f1f5f9;
-  --saa-gray-200: #e2e8f0;
-  --saa-gray-300: #cbd5e1;
-  --saa-gray-400: #94a3b8;
-  --saa-gray-500: #64748b;
-  --saa-gray-600: #475569;
-  --saa-gray-700: #334155;
-  --saa-gray-800: #1e293b;
-  --saa-gray-900: #0f172a;
-
-  /* Typography */
-  --saa-font-family: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --saa-font-size-xs: 0.75rem;
-  --saa-font-size-sm: 0.875rem;
-  --saa-font-size-base: 1rem;
-  --saa-font-size-lg: 1.125rem;
-  --saa-font-size-xl: 1.25rem;
-  --saa-font-size-2xl: 1.5rem;
-  --saa-font-size-3xl: 1.875rem;
-  --saa-font-size-4xl: 2.25rem;
-  --saa-font-size-5xl: 3rem;
-
-  --saa-font-weight-light: 300;
-  --saa-font-weight-regular: 400;
-  --saa-font-weight-medium: 500;
-  --saa-font-weight-semibold: 600;
-  --saa-font-weight-bold: 700;
-  --saa-font-weight-extrabold: 800;
-
-  --saa-line-height-tight: 1.25;
-  --saa-line-height-normal: 1.5;
-  --saa-line-height-relaxed: 1.75;
-
-  /* Spacing */
-  --saa-space-1: 0.25rem;
-  --saa-space-2: 0.5rem;
-  --saa-space-3: 0.75rem;
-  --saa-space-4: 1rem;
-  --saa-space-5: 1.25rem;
-  --saa-space-6: 1.5rem;
-  --saa-space-8: 2rem;
-  --saa-space-10: 2.5rem;
-  --saa-space-12: 3rem;
-  --saa-space-16: 4rem;
-  --saa-space-20: 5rem;
-
-  /* Border Radius */
-  --saa-radius-sm: 0.375rem;
-  --saa-radius-md: 0.5rem;
-  --saa-radius-lg: 0.75rem;
-  --saa-radius-xl: 1rem;
-  --saa-radius-2xl: 1.5rem;
-  --saa-radius-full: 9999px;
+  /* Colors */
+  --saa-navy: #0A1628;
+  --saa-navy-mid: #112240;
+  --saa-navy-light: #1E3A5F;
+  --saa-gold: #F5A623;
+  --saa-gold-light: #FFD166;
+  --saa-teal: #0EA5E9;
+  --saa-teal-dark: #0284C7;
+  --saa-bg: #F0F4F8;
+  --saa-white: #FFFFFF;
+  --saa-text: #1E293B;
+  --saa-text-muted: #64748B;
+  --saa-success: #10B981;
+  --saa-danger: #EF4444;
+  --saa-warning: #F59E0B;
+  --saa-border: #E2E8F0;
 
   /* Shadows */
-  --saa-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --saa-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --saa-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --saa-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-  --saa-shadow-glow: 0 0 20px rgba(26, 58, 92, 0.15);
-  --saa-shadow-gold: 0 0 20px rgba(240, 165, 0, 0.2);
+  --saa-shadow-sm: 0 1px 4px rgba(10,22,40,0.08);
+  --saa-shadow-md: 0 4px 20px rgba(10,22,40,0.12);
+  --saa-shadow-lg: 0 8px 40px rgba(10,22,40,0.18);
+  --saa-shadow-gold: 0 4px 20px rgba(245,166,35,0.35);
+
+  /* Radii */
+  --saa-radius-sm: 8px;
+  --saa-radius-md: 12px;
+  --saa-radius-lg: 16px;
+  --saa-radius-xl: 24px;
+
+  /* Layout */
+  --saa-sidebar-width: 260px;
+  --saa-header-height: 64px;
 
   /* Transitions */
-  --saa-transition-fast: 150ms ease;
-  --saa-transition-base: 250ms ease;
-  --saa-transition-slow: 350ms ease;
-  --saa-transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --saa-transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
 
-  /* Sidebar */
-  --saa-sidebar-width: 270px;
-  --saa-sidebar-collapsed: 0px;
-  --saa-navbar-height: 64px;
+  /* Gradients */
+  --saa-gradient-primary: linear-gradient(135deg, 
+    #0A1628 0%, #112240 50%, #1E3A5F 100%);
+  --saa-gradient-gold: linear-gradient(135deg, 
+    #F5A623 0%, #FFD166 100%);
+  --saa-gradient-hero: linear-gradient(135deg, 
+    rgba(10,22,40,0.92) 0%, rgba(14,165,233,0.3) 100%);
+  --saa-gradient-card: linear-gradient(135deg, 
+    #667eea 0%, #764ba2 100%);
+  --saa-gradient-teal: linear-gradient(135deg,
+    #0EA5E9 0%, #0284C7 100%);
 }
