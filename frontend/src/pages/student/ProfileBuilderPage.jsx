@@ -1,4 +1,4 @@
-import { useState, useContext, useRef } from 'react';
+import { useState, useContext, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import * as yup from 'yup';
@@ -14,16 +14,16 @@ const COUNTRIES = ['Pakistan','India','Bangladesh','Nigeria','United Kingdom','G
 const QUALIFICATIONS = ["Matric","Intermediate","Bachelor's","Master's","PhD"];
 const FIELDS = ['Computer Science','Engineering','Business','Medicine','Arts','Law','Other'];
 const DEGREE_LEVELS = [
-  { value: "Bachelor's", icon: '🎓' },
-  { value: "Master's",   icon: '📚' },
+  { value: 'Bachelor', icon: '🎓' },
+  { value: 'Master',   icon: '📚' },
   { value: 'PhD',        icon: '🔬' },
   { value: 'Diploma',    icon: '📜' },
 ];
 const PREF_COUNTRIES = [
   { flag: '🇩🇪', name: 'Germany' },
   { flag: '🇨🇦', name: 'Canada' },
-  { flag: '🇬🇧', name: 'UK' },
-  { flag: '🇺🇸', name: 'USA' },
+  { flag: '🇬🇧', name: 'United Kingdom' },
+  { flag: '🇺🇸', name: 'United States' },
   { flag: '🇦🇺', name: 'Australia' },
   { flag: '🇹🇷', name: 'Turkey' },
 ];
@@ -32,6 +32,10 @@ const RANKING_OPTIONS = ['Top 50','Top 100','Top 200','Any'];
 const schema1 = yup.object({ full_name: yup.string().required('Required'), nationality: yup.string().required('Required'), current_country: yup.string().required('Required'), phone: yup.string().required('Required') });
 const schema2 = yup.object({ current_qualification: yup.string().required('Required'), gpa_mode: yup.string(), gpa_value: yup.string().required('Required'), field_of_interest: yup.string().required('Required'), ielts_score: yup.number().min(0).max(9).required('Required') });
 const schema3 = yup.object({ degree_level: yup.string().required('Select degree level'), annual_budget_usd: yup.number().required() });
+
+function normalizeDegreeLevel(value) {
+  return ({ "Bachelor's": 'Bachelor', "Master's": 'Master' })[value] || value || '';
+}
 
 function Shimmer({ h = 40, r = 8 }) {
   return <div style={{ height: h, borderRadius: r, background: 'linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%)', backgroundSize: '400% 100%', animation: 'shimmer 1.4s infinite', marginBottom: 12 }} />;
@@ -108,9 +112,41 @@ export default function ProfileBuilderPage() {
   const [budget, setBudget] = useState(profile.annual_budget_usd || 15000);
   const [needsScholarship, setNeedsScholarship] = useState(profile.needs_scholarship || false);
 
-  const { register: reg1, handleSubmit: hs1, formState: { errors: e1 } } = useForm({ resolver: yupResolver(schema1), defaultValues: { full_name: profile.full_name || '', nationality: profile.nationality || '', current_country: profile.current_country || '', phone: profile.phone || '' } });
-  const { register: reg2, handleSubmit: hs2, formState: { errors: e2 }, watch: w2 } = useForm({ resolver: yupResolver(schema2), defaultValues: { current_qualification: profile.current_qualification || '', gpa_mode: 'GPA', gpa_value: profile.gpa ? String(profile.gpa) : '', field_of_interest: profile.field_of_interest || '', ielts_score: profile.ielts_score || '', toefl_score: profile.toefl_score || '', other_languages: profile.other_languages || '' } });
-  const { register: reg3, handleSubmit: hs3, formState: { errors: e3 }, watch: w3, setValue: sv3 } = useForm({ resolver: yupResolver(schema3), defaultValues: { degree_level: profile.degree_level || '', annual_budget_usd: profile.annual_budget_usd || 15000, target_intake_season: 'Fall', target_intake_year: '2027', ranking_preference: profile.ranking_preference || 'Any' } });
+  const { register: reg1, handleSubmit: hs1, formState: { errors: e1 }, reset: reset1 } = useForm({ resolver: yupResolver(schema1), defaultValues: { full_name: profile.full_name || '', nationality: profile.nationality || '', current_country: profile.current_country || '', phone: profile.phone || '' } });
+  const { register: reg2, handleSubmit: hs2, formState: { errors: e2 }, watch: w2, reset: reset2 } = useForm({ resolver: yupResolver(schema2), defaultValues: { current_qualification: profile.current_qualification || '', gpa_mode: 'GPA', gpa_value: profile.gpa ? String(profile.gpa) : '', field_of_interest: profile.field_of_interest || '', ielts_score: profile.ielts_score || '', toefl_score: profile.toefl_score || '', other_languages: profile.other_languages || '' } });
+  const { register: reg3, handleSubmit: hs3, formState: { errors: e3 }, watch: w3, setValue: sv3, reset: reset3 } = useForm({ resolver: yupResolver(schema3), defaultValues: { degree_level: normalizeDegreeLevel(profile.degree_level), annual_budget_usd: profile.annual_budget_usd || 15000, target_intake_season: 'Fall', target_intake_year: '2027', ranking_preference: profile.ranking_preference || 'Any' } });
+
+  useEffect(() => {
+    if (!profileData?.data) return;
+    const p = profileData.data;
+    const [season = 'Fall', year = '2027'] = String(p.target_intake || 'Fall 2027').split(' ');
+
+    reset1({
+      full_name: p.full_name || '',
+      nationality: p.nationality || '',
+      current_country: p.current_country || '',
+      phone: p.phone || '',
+    });
+    reset2({
+      current_qualification: p.current_qualification || '',
+      gpa_mode: 'GPA',
+      gpa_value: p.gpa !== null && p.gpa !== undefined ? String(p.gpa) : '',
+      field_of_interest: p.field_of_interest || '',
+      ielts_score: p.ielts_score || '',
+      toefl_score: p.toefl_score || '',
+      other_languages: p.other_languages || '',
+    });
+    reset3({
+      degree_level: normalizeDegreeLevel(p.degree_level),
+      annual_budget_usd: p.annual_budget_usd || 15000,
+      target_intake_season: season,
+      target_intake_year: year,
+      ranking_preference: p.ranking_preference || 'Any',
+    });
+    setPrefCountries(Array.isArray(p.preferred_countries) ? p.preferred_countries : []);
+    setBudget(Number(p.annual_budget_usd) || 15000);
+    setNeedsScholarship(Boolean(p.needs_scholarship));
+  }, [profileData, reset1, reset2, reset3]);
 
   const gpaMode = w2('gpa_mode');
   const degLevel = w3('degree_level');
@@ -133,8 +169,8 @@ export default function ProfileBuilderPage() {
         target_intake: `${data.target_intake_season} ${data.target_intake_year}`,
         ranking_preference: data.ranking_preference,
       };
-      await updateProfile(payload);
-      localStorage.setItem('saa_profile', JSON.stringify(payload));
+      const res = await updateProfile(payload);
+      localStorage.setItem('saa_profile', JSON.stringify(res?.data || payload));
       toast?.success('Profile saved successfully! ✅');
       setTimeout(() => navigate('/dashboard'), 1500);
     } catch { toast?.error('Failed to save profile'); }

@@ -1,15 +1,57 @@
-# SAA Backend - Simple PHP + MySQL API
+# SAA Backend
 
-This backend is a framework-free PHP API for the Study Abroad Assistant React frontend. It keeps the existing `/api/...` route contract and JSON response shapes, but now uses MySQL through PDO prepared statements instead of `backend/data/database.json`.
+Framework-free PHP + MySQL API for the Study Abroad Assistant project.
+
+The backend provides authentication, student APIs, recommendation data, shortlist persistence, roadmap tracking, writing assistant storage/refinement, template downloads, and admin management APIs. It is intentionally simple for an academic semester project: plain PHP, PDO prepared statements, and no Composer or Laravel dependency.
+
+## Final Status
+
+Status: Final integrated backend.
+
+Verified with:
+
+- XAMPP MySQL/MariaDB
+- PHP development server on `127.0.0.1:8000`
+- React frontend in live API mode
+- Student and admin bearer-token authentication
+- Dashboard/profile/recommendation/shortlist/roadmap/writing/admin smoke flow
+- Temporary smoke-test student cleanup through admin delete endpoint
+- PHP syntax check passing with `D:\xamp\php\php.exe -l backend\src\app.php`
 
 ## Requirements
 
 - PHP 8.1+ recommended
-- PHP `pdo_mysql` extension enabled
-- MySQL or MariaDB, such as XAMPP MySQL/phpMyAdmin
-- No Laravel
+- PHP `pdo_mysql` extension
+- MySQL or MariaDB
+- XAMPP is supported on Windows
 - No Composer required
-- No PHP framework required
+- No Laravel or PHP framework required
+
+## Environment
+
+Create local environment config:
+
+```powershell
+cd backend
+Copy-Item .env.example .env
+```
+
+Recommended local values:
+
+```env
+APP_URL=http://127.0.0.1:8000
+FRONTEND_URL=http://localhost:5173,http://127.0.0.1:5173
+JWT_SECRET=change_this_to_a_long_random_secret_for_local_demo
+JWT_TTL_MINUTES=120
+AI_PROVIDER=none
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=saa_project
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+For public deployment, change `JWT_SECRET` and review all security settings.
 
 ## Database
 
@@ -21,12 +63,14 @@ saa_project
 
 Database files:
 
-- `backend/database/schema.sql`
-- `backend/database/seed.php`
-- `backend/database/README.md`
-- `backend/src/db.php`
+```text
+backend/database/schema.sql
+backend/database/seed.php
+backend/database/README.md
+backend/src/db.php
+```
 
-Create schema:
+Create schema with XAMPP MySQL:
 
 ```powershell
 D:\xamp\mysql\bin\mysql.exe -u root --execute="SOURCE D:/SAA/saa-project/backend/database/schema.sql"
@@ -38,33 +82,23 @@ Seed demo data:
 D:\xamp\php\php.exe backend\database\seed.php
 ```
 
-## Environment
-
-Copy the example file:
+If PHP/MySQL are in PATH:
 
 ```powershell
-cd backend
-Copy-Item .env.example .env
+mysql -u root --execute="SOURCE D:/SAA/saa-project/backend/database/schema.sql"
+php backend\database\seed.php
 ```
 
-Required database values:
+## Run
 
-```env
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=saa_project
-DB_USERNAME=root
-DB_PASSWORD=
-```
-
-## Run Locally
+From the project root:
 
 ```powershell
 cd backend
 D:\xamp\php\php.exe -S 127.0.0.1:8000 router.php
 ```
 
-If PHP is available in PATH:
+If PHP is in PATH:
 
 ```powershell
 cd backend
@@ -77,34 +111,198 @@ API base URL:
 http://127.0.0.1:8000/api
 ```
 
+Health check:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/api
+```
+
 ## Demo Credentials
 
-- Student: `student@test.com` / `Test@1234`
-- Admin: `admin@saa.local` / `Admin@12345`
+Student:
 
-## Implemented Areas
+```text
+student@test.com
+Test@1234
+```
 
-- Student/admin login with HMAC JWT-style bearer tokens
-- Student registration, profile, dashboard, recommendations, shortlist, guide, roadmap, templates, and writing assistant
-- Admin dashboard, university CRUD, scholarship CRUD, and student status/delete actions
-- MySQL persistence with PDO prepared statements
-- CORS for the Vite dev server
+Admin:
+
+```text
+admin@saa.local
+Admin@12345
+```
+
+## API Groups
+
+Authentication:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/admin/auth/login`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
+
+Student:
+
+- `GET /api/student/dashboard`
+- `GET /api/student/profile`
+- `PUT /api/student/profile`
+
+Recommendations:
+
+- `GET /api/recommendations/universities`
+- `GET /api/recommendations/scholarships`
+
+Shortlist:
+
+- `GET /api/shortlist`
+- `POST /api/shortlist`
+- `DELETE /api/shortlist/{id}?entity_type=university`
+- `DELETE /api/shortlist/{id}?entity_type=scholarship`
+
+Application tools:
+
+- `GET /api/guides/{entity_type}/{id}`
+- `GET /api/roadmap`
+- `POST /api/roadmap/generate`
+- `PATCH /api/roadmap/milestones/{id}`
+- `GET /api/templates`
+- `GET /api/templates/{id}/download`
+- `POST /api/writing/generate`
+- `PUT /api/writing/{id}`
+- `POST /api/writing/{id}/refine`
+
+Admin:
+
+- `GET /api/admin/dashboard`
+- `GET /api/admin/universities`
+- `POST /api/admin/universities`
+- `PUT /api/admin/universities/{id}`
+- `DELETE /api/admin/universities/{id}`
+- `GET /api/admin/scholarships`
+- `POST /api/admin/scholarships`
+- `PUT /api/admin/scholarships/{id}`
+- `DELETE /api/admin/scholarships/{id}`
+- `GET /api/admin/students`
+- `PATCH /api/admin/students/{id}/status`
+- `DELETE /api/admin/students/{id}`
+
+Full contract:
+
+```text
+docs/api-contract.md
+```
+
+## Authentication
+
+Protected endpoints use bearer tokens:
+
+```http
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+Tokens are HMAC-signed JWT-style strings generated by the backend. The backend validates token signature, expiry, active user status, and role.
+
+## Final Integration Behavior
+
+The final backend includes compatibility updates for the latest frontend commit:
+
+- Dashboard returns shortlist counts, shortlist IDs, roadmap progress, and profile data.
+- Profile save normalizes degree aliases such as `Master's` to `Master`.
+- Profile save normalizes country aliases such as `UK` and `USA`.
+- University matching uses normalized degree and country values.
+- Shortlist add/remove responses include updated counts and IDs.
+- Roadmap generation persists all new milestones as `Not Started`.
+- Roadmap milestone update returns updated roadmap progress.
+- Writing assistant accepts both current frontend payloads and older aliases:
+  - `personal_statement` -> `personal`
+  - `motivation_letter` -> `motivation`
+  - `cover_letter` -> `cover`
+  - `word_limit` -> `word_count`
+  - `background` as fallback context
+
+## Validation
+
+The backend validates:
+
+- Required fields
+- Email format and duplicate email
+- Password strength and confirmation
+- Phone format
+- Numeric ranges for GPA, IELTS, TOEFL, tuition, rankings, and word count
+- Date format
+- URL format
+- Basic unsafe text/script-like characters
+- Entity existence for shortlist and admin operations
+- Role access for student/admin APIs
+
+## Project Structure
+
+```text
+backend/
+|-- database/
+|   |-- schema.sql
+|   |-- seed.php
+|   `-- README.md
+|-- public/
+|   `-- index.php
+|-- src/
+|   |-- app.php
+|   `-- db.php
+|-- router.php
+|-- start-server.bat
+`-- README.md
+```
 
 ## Testing
 
-From the project root:
+Backend syntax:
+
+```powershell
+D:\xamp\php\php.exe -l backend\src\app.php
+```
+
+Root full-stack evidence script:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\fullstack-evidence-test.ps1
+```
+
+Root SRS smoke script:
+
+```powershell
 powershell -ExecutionPolicy Bypass -File scripts\srs-acceptance-smoke.ps1
 ```
 
-Evidence is saved in:
+Expected successful smoke result:
 
 ```text
-docs/testing-evidence/mysql-migration/
+failed_features=0
+failed_validation=0
 ```
 
-## Notes
+## Troubleshooting
 
-The backend is intentionally simple PHP for semester/demo use. For production, use stronger secret management, avoid resetting seed data in production, add database migrations per release, and review deployment security settings.
+| Problem | Fix |
+|---|---|
+| `Database connection failed` | Start MySQL and verify `.env` DB values. |
+| `Unknown database saa_project` | Import `backend/database/schema.sql`. |
+| Login fails for demo user | Run `backend/database/seed.php`. |
+| CORS error | Add frontend URL to `FRONTEND_URL` in backend `.env`. |
+| `php` not recognized | Use `D:\xamp\php\php.exe` or add PHP to PATH. |
+| Port 8000 busy | Stop old PHP server or run on a different port and update frontend `.env`. |
+| Token says unauthenticated | Login again or clear stale frontend local storage. |
+
+## Production Notes
+
+This backend is suitable for local demo and academic presentation use. Before any real deployment:
+
+- Use a strong secret from secure environment storage.
+- Add HTTPS.
+- Add password reset and email verification if needed.
+- Replace demo seed credentials.
+- Add migrations instead of full replace-style seed resets.
+- Add structured logging and rate limiting.
+- Review authorization rules and input validation with production threat models.

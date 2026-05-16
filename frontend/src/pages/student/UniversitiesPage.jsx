@@ -1,9 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useApi } from '../../hooks/useApi';
 import { getUniversities } from '../../services/recommendationService';
-import { addToShortlist, removeFromShortlist, isInShortlist } from '../../services/shortlistService';
+import { addToShortlist, removeFromShortlist } from '../../services/shortlistService';
 
 const COUNTRY_IMAGES = {
   Germany: 'https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=600&q=80',
@@ -111,7 +111,7 @@ function UniversityCard({ uni, saved, onToggleSave }) {
 
 export default function UniversitiesPage() {
   const { data, loading } = useApi(getUniversities);
-  const universities = data?.data || [];
+  const universities = useMemo(() => data?.data || [], [data]);
 
   const [search, setSearch] = useState('');
   const [selCountries, setSelCountries] = useState([]);
@@ -119,12 +119,16 @@ export default function UniversitiesPage() {
   const [maxBudget, setMaxBudget] = useState(60000);
   const [minGpa, setMinGpa] = useState(0);
   const [sortBy, setSortBy] = useState('match_score');
-  const [saved, setSaved] = useState(() => {
-    const init = {};
-    [1,3,5].forEach(id => { init[id] = true; });
-    return init;
-  });
+  const [saved, setSaved] = useState({});
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    const next = {};
+    universities.forEach(uni => {
+      if (uni.is_shortlisted) next[uni.id] = true;
+    });
+    setSaved(next);
+  }, [universities]);
 
   const filtered = useMemo(() => {
     let res = [...universities];
@@ -148,8 +152,12 @@ export default function UniversitiesPage() {
   async function handleToggleSave(uni) {
     const isSaved = saved[uni.id];
     setSaved(p => ({ ...p, [uni.id]: !isSaved }));
-    if (isSaved) await removeFromShortlist('university', uni.id);
-    else await addToShortlist('university', uni.id);
+    try {
+      if (isSaved) await removeFromShortlist('university', uni.id);
+      else await addToShortlist('university', uni.id);
+    } catch {
+      setSaved(p => ({ ...p, [uni.id]: isSaved }));
+    }
   }
 
   return (

@@ -656,15 +656,39 @@ function saa_update_profile(array $db, array $user): void
 function saa_normalize_profile_value(string $key, mixed $value): mixed
 {
     if ($key === 'preferred_countries') {
-        return saa_array_value($value);
+        return array_values(array_unique(array_map('saa_normalize_country_name', saa_array_value($value))));
     }
     if ($key === 'needs_scholarship') {
         return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+    if ($key === 'degree_level') {
+        return saa_normalize_degree_level((string) $value);
     }
     if (in_array($key, ['gpa', 'annual_budget_usd', 'ielts_score', 'toefl_score'], true)) {
         return $value === '' || $value === null ? null : (float) $value;
     }
     return is_string($value) ? trim($value) : $value;
+}
+
+function saa_normalize_degree_level(string $value): string
+{
+    $normalized = strtolower(trim($value));
+    return match ($normalized) {
+        "bachelor's", 'bachelors' => 'Bachelor',
+        "master's", 'masters' => 'Master',
+        'ph.d.', 'phd' => 'PhD',
+        default => trim($value),
+    };
+}
+
+function saa_normalize_country_name(string $value): string
+{
+    $normalized = strtolower(trim($value));
+    return match ($normalized) {
+        'uk', 'u.k.', 'britain', 'great britain' => 'United Kingdom',
+        'usa', 'u.s.a.', 'us', 'u.s.' => 'United States',
+        default => trim($value),
+    };
 }
 
 function saa_profile_completion(array $profile): int
@@ -699,14 +723,18 @@ function saa_student_dashboard(array $db, array $user): void
     $milestones = saa_user_milestones($db, (int) $user['id']);
     $done = count(array_filter($milestones, fn (array $item): bool => ($item['status'] ?? '') === 'Done'));
     $roadmapProgress = count($milestones) > 0 ? (int) round(($done / count($milestones)) * 100) : 0;
+    $shortlist = saa_shortlist_summary($db, $user);
 
     saa_json([
         'success' => true,
         'data' => [
-            'saved_universities' => count(saa_shortlisted_ids($db, (int) $user['id'], 'university')),
-            'saved_scholarships' => count(saa_shortlisted_ids($db, (int) $user['id'], 'scholarship')),
+            'saved_universities' => $shortlist['saved_universities'],
+            'saved_scholarships' => $shortlist['saved_scholarships'],
+            'shortlist_university_ids' => $shortlist['university_ids'],
+            'shortlist_scholarship_ids' => $shortlist['scholarship_ids'],
             'profile_completion' => saa_profile_completion($profile),
             'roadmap_progress' => $roadmapProgress,
+            'profile' => $profile,
             'recent_activity' => saa_recent_activity($db, (int) $user['id']),
         ],
     ]);
@@ -792,10 +820,13 @@ function saa_university_recommendations(array $db, array $user): void
 function saa_calculate_university_match(array $item, array $profile): int
 {
     $score = (int) ($item['match_score'] ?? 65);
-    if (($profile['degree_level'] ?? '') !== '' && in_array($profile['degree_level'], $item['degree_levels'] ?? [], true)) {
+    $profileDegree = saa_normalize_degree_level((string) ($profile['degree_level'] ?? ''));
+    $degreeLevels = array_map('saa_normalize_degree_level', saa_array_value($item['degree_levels'] ?? []));
+    if ($profileDegree !== '' && in_array($profileDegree, $degreeLevels, true)) {
         $score += 5;
     }
-    if (in_array($item['country'], $profile['preferred_countries'] ?? [], true)) {
+    $preferredCountries = array_map('saa_normalize_country_name', saa_array_value($profile['preferred_countries'] ?? []));
+    if (in_array(saa_normalize_country_name((string) $item['country']), $preferredCountries, true)) {
         $score += 6;
     }
     if (($profile['annual_budget_usd'] ?? null) !== null && (float) $item['tuition_fee_usd'] <= (float) $profile['annual_budget_usd']) {
@@ -863,6 +894,19 @@ function saa_shortlist_index(array $db, array $user): void
             'scholarships' => array_map('saa_scholarship_response', array_values(array_filter($db['scholarships'], fn (array $item): bool => in_array((int) $item['id'], $scholarshipIds, true)))),
         ],
     ]);
+}
+
+function saa_shortlist_summary(array $db, array $user): array
+{
+    $universityIds = saa_shortlisted_ids($db, (int) $user['id'], 'university');
+    $scholarshipIds = saa_shortlisted_ids($db, (int) $user['id'], 'scholarship');
+
+    return [
+        'saved_universities' => count($universityIds),
+        'saved_scholarships' => count($scholarshipIds),
+        'university_ids' => $universityIds,
+        'scholarship_ids' => $scholarshipIds,
+    ];
 }
 
 function saa_validate_profile_input(array $input): array
@@ -944,12 +988,21 @@ function saa_shortlist_store(array $db, array $user): void
     ];
 
     saa_save_db($db);
-    saa_json(['success' => true, 'message' => 'Added to shortlist'], 201);
+    saa_json([
+        'success' => true,
+        'message' => 'Added to shortlist',
+        'data' => saa_shortlist_summary($db, $user),
+    ], 201);
 }
 
 function saa_shortlist_delete(array $db, array $user, int $entityId): void
 {
-    $type = $_GET['entity_type'] ?? null;
+    $type = isset($_GET['entity_type']) ? (string) $_GET['entity_type'] : null;
+    if ($type !== null && !in_array($type, ['university', 'scholarship'], true)) {
+        saa_error('Invalid shortlist item', 422, ['entity_type' => ['Entity type must be university or scholarship.']]);
+        return;
+    }
+
     $db['shortlists'] = array_values(array_filter($db['shortlists'], function (array $row) use ($user, $entityId, $type): bool {
         $sameUser = (int) $row['user_id'] === (int) $user['id'];
         $sameEntity = (int) $row['entity_id'] === $entityId;
@@ -958,7 +1011,11 @@ function saa_shortlist_delete(array $db, array $user, int $entityId): void
     }));
 
     saa_save_db($db);
-    saa_json(['success' => true, 'message' => 'Removed from shortlist']);
+    saa_json([
+        'success' => true,
+        'message' => 'Removed from shortlist',
+        'data' => saa_shortlist_summary($db, $user),
+    ]);
 }
 
 function saa_entity_by_id(array $db, string $type, int $id): ?array
@@ -1060,20 +1117,35 @@ function saa_roadmap_generate(array $db, array $user): void
     $nextId = saa_next_id($db['roadmap_milestones']);
     foreach ($newMilestones as $milestone) {
         $milestone['id'] = $nextId++;
+        $milestone['status'] = 'Not Started';
         $db['roadmap_milestones'][] = $milestone;
     }
 
+    $profileFound = false;
     foreach ($db['profiles'] as $index => $profile) {
         if ((int) ($profile['user_id'] ?? 0) === (int) $user['id']) {
             $db['profiles'][$index]['target_intake'] = $targetIntake;
+            $profileFound = true;
         }
+    }
+    if (!$profileFound) {
+        $db['profiles'][] = [
+            'user_id' => (int) $user['id'],
+            'preferred_countries' => [],
+            'needs_scholarship' => false,
+            'target_intake' => $targetIntake,
+        ];
     }
 
     saa_save_db($db);
     saa_json([
         'success' => true,
         'message' => 'Roadmap generated',
-        'data' => ['milestones' => saa_user_milestones($db, (int) $user['id'])],
+        'data' => [
+            'target_intake' => $targetIntake,
+            'milestones' => saa_user_milestones($db, (int) $user['id']),
+            'roadmap_progress' => 0,
+        ],
     ], 201);
 }
 
@@ -1090,7 +1162,17 @@ function saa_roadmap_update_milestone(array $db, array $user, int $id): void
         if ((int) $milestone['id'] === $id && (int) $milestone['user_id'] === (int) $user['id']) {
             $db['roadmap_milestones'][$index]['status'] = $status;
             saa_save_db($db);
-            saa_json(['success' => true, 'message' => 'Milestone updated']);
+            $milestones = saa_user_milestones($db, (int) $user['id']);
+            $done = count(array_filter($milestones, fn (array $item): bool => ($item['status'] ?? '') === 'Done'));
+            $progress = count($milestones) > 0 ? (int) round(($done / count($milestones)) * 100) : 0;
+            saa_json([
+                'success' => true,
+                'message' => 'Milestone updated',
+                'data' => [
+                    'milestone' => array_values(array_filter($milestones, fn (array $item): bool => (int) $item['id'] === $id))[0] ?? null,
+                    'roadmap_progress' => $progress,
+                ],
+            ]);
             return;
         }
     }
@@ -1311,7 +1393,7 @@ function saa_make_zip(array $files): string
 
 function saa_writing_generate(array $db, array $user): void
 {
-    $input = saa_input();
+    $input = saa_normalize_writing_input(saa_input());
     $required = ['document_type', 'target_university', 'target_program', 'achievements', 'why_university', 'career_goals'];
     $errors = [];
     foreach ($required as $field) {
@@ -1319,11 +1401,11 @@ function saa_writing_generate(array $db, array $user): void
             $errors[$field][] = 'This field is required.';
         }
     }
-    if (!in_array((string) ($input['document_type'] ?? ''), ['sop', 'personal', 'motivation', 'cover'], true)) {
+    if (!in_array((string) ($input['document_type'] ?? ''), saa_supported_document_types(), true)) {
         $errors['document_type'][] = 'Select a supported document type.';
     }
     if (array_key_exists('word_count', $input)) {
-        saa_validate_numeric_field($errors, 'word_count', $input, 250, 1500, true);
+        saa_validate_numeric_field($errors, 'word_count', $input, 100, 2000, true);
     }
     if ($errors !== []) {
         saa_error('Validation failed', 422, $errors);
@@ -1346,6 +1428,39 @@ function saa_writing_generate(array $db, array $user): void
     unset($document['user_id'], $document['updated_at']);
     $document['title'] = saa_document_title((string) $input['document_type'], (string) $input['target_university']);
     saa_json(['success' => true, 'message' => 'Document generated successfully', 'data' => $document], 201);
+}
+
+function saa_normalize_writing_input(array $input): array
+{
+    $typeAliases = [
+        'personal_statement' => 'personal',
+        'motivation_letter' => 'motivation',
+        'cover_letter' => 'cover',
+        'statement_of_purpose' => 'sop',
+    ];
+
+    if (array_key_exists('document_type', $input)) {
+        $type = strtolower(trim((string) $input['document_type']));
+        $input['document_type'] = $typeAliases[$type] ?? $type;
+    }
+    if (array_key_exists('word_limit', $input) && !array_key_exists('word_count', $input)) {
+        $input['word_count'] = $input['word_limit'];
+    }
+    if (array_key_exists('background', $input)) {
+        if (!array_key_exists('why_university', $input)) {
+            $input['why_university'] = $input['background'];
+        }
+        if (!array_key_exists('career_goals', $input)) {
+            $input['career_goals'] = $input['background'];
+        }
+    }
+
+    return $input;
+}
+
+function saa_supported_document_types(): array
+{
+    return ['sop', 'personal', 'motivation', 'cover'];
 }
 
 function saa_generate_document_text(array $input): string

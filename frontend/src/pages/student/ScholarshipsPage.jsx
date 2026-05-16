@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { useApi } from '../../hooks/useApi';
 import { getScholarships } from '../../services/recommendationService';
@@ -95,14 +95,22 @@ function ScholarshipCard({ sch, saved, onToggleSave }) {
 
 export default function ScholarshipsPage() {
   const { data, loading } = useApi(getScholarships);
-  const scholarships = data?.data || [];
+  const scholarships = useMemo(() => data?.data || [], [data]);
 
   const [search, setSearch] = useState('');
   const [selCountry, setSelCountry] = useState('');
   const [selCoverage, setSelCoverage] = useState('');
   const [sortBy, setSortBy] = useState('default');
-  const [saved, setSaved] = useState({ 2: true, 4: true });
+  const [saved, setSaved] = useState({});
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  useEffect(() => {
+    const next = {};
+    scholarships.forEach(sch => {
+      if (sch.is_shortlisted) next[sch.id] = true;
+    });
+    setSaved(next);
+  }, [scholarships]);
 
   const filtered = useMemo(() => {
     let res = [...scholarships];
@@ -118,8 +126,12 @@ export default function ScholarshipsPage() {
   async function handleToggleSave(sch) {
     const isSaved = saved[sch.id];
     setSaved(p => ({ ...p, [sch.id]: !isSaved }));
-    if (isSaved) await removeFromShortlist('scholarship', sch.id);
-    else await addToShortlist('scholarship', sch.id);
+    try {
+      if (isSaved) await removeFromShortlist('scholarship', sch.id);
+      else await addToShortlist('scholarship', sch.id);
+    } catch {
+      setSaved(p => ({ ...p, [sch.id]: isSaved }));
+    }
   }
 
   const countries = [...new Set(scholarships.map(s => s.funding_country))];

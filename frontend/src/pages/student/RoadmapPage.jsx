@@ -66,6 +66,14 @@ export default function RoadmapPage() {
   const totalCount = milestones.length;
   const pct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('saa_roadmap_progress', JSON.stringify(pct));
+    } catch {
+      // Ignore storage quota or private-mode failures.
+    }
+  }, [pct]);
+
   async function handleStatusChange(id, status) {
     setMilestones(prev => prev.map(m => m.id === id ? { ...m, status } : m));
     await updateMilestoneStatus(id, status);

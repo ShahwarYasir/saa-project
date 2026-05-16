@@ -6,7 +6,7 @@ The project has been integrated and tested end-to-end in live API mode. The fron
 
 ## Project Status
 
-Status: Working and integrated.
+Status: Final project handoff - working and integrated in live API mode.
 
 Verified areas:
 
@@ -21,6 +21,14 @@ Verified areas:
 - Backend validation rejects invalid input.
 - Production frontend build passes.
 - Automated full-stack evidence script passes.
+
+Final integration updates:
+
+- Frontend `.env.example` now defaults to live API mode with `VITE_USE_MOCKS=false`.
+- Dashboard, profile, shortlist, roadmap, recommendations, and writing assistant are aligned with the backend response contracts.
+- Backend normalizes profile aliases such as `Master's`, `UK`, and `USA` so matching works with frontend form labels.
+- Backend roadmap generation now persists the frontend reset behavior by saving all generated milestones as `Not Started`.
+- Writing assistant accepts both current frontend payload fields and older document type aliases.
 
 Testing report:
 
@@ -328,7 +336,7 @@ Main API groups:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
-- `POST /api/auth/admin/login`
+- `POST /api/admin/auth/login`
 - `GET /api/auth/me`
 - `GET /api/student/dashboard`
 - `GET /api/student/profile`

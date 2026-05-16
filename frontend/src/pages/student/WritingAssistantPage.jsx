@@ -51,7 +51,7 @@ export default function WritingAssistantPage() {
       });
       setContent(res.data.content);
       setDocId(res.data.id);
-      setStep(3);
+      setStep(2);
     } catch { toast?.error('Generation failed. Try again.'); }
     finally { setGenerating(false); }
   }
@@ -204,7 +204,7 @@ export default function WritingAssistantPage() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button onClick={() => setStep(2)} style={{ background: '#F1F5F9', color: 'var(--saa-text)', fontWeight: 600, padding: '0.7rem 1.25rem', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>← Regenerate</button>
+            <button onClick={() => setStep(1)} style={{ background: '#F1F5F9', color: 'var(--saa-text)', fontWeight: 600, padding: '0.7rem 1.25rem', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>← Regenerate</button>
             <button onClick={handleCopy} style={{ background: 'var(--saa-navy)', color: '#fff', fontWeight: 600, padding: '0.7rem 1.25rem', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>📋 Copy</button>
             <button onClick={handleDownload} style={{ background: '#F1F5F9', color: 'var(--saa-text)', fontWeight: 600, padding: '0.7rem 1.25rem', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13 }}>💾 Download .txt</button>
             <button onClick={handleRefine} disabled={generating} style={{ background: 'var(--saa-gradient-gold)', color: 'var(--saa-navy)', fontWeight: 700, padding: '0.7rem 1.25rem', border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 13, marginLeft: 'auto', opacity: generating ? 0.7 : 1 }}>

@@ -103,11 +103,15 @@ export default function DashboardPage() {
   const { data: profileData, loading: profileLoading } = useApi(getProfile);
   const profile = profileData?.data || null;
   const dash = dashData?.data || null;
-  const shortlistUnis = getFromStorage('saa_shortlist_unis', []);
-  const shortlistScholarships = getFromStorage('saa_shortlist_scholarships', []);
-  const roadmapProgress = Number(getFromStorage('saa_roadmap_progress', 0)) || 0;
+  const shortlistUnis = getFromStorage('saa_shortlist_unis', null);
+  const shortlistScholarships = getFromStorage('saa_shortlist_scholarships', null);
+  const storedRoadmapProgress = getFromStorage('saa_roadmap_progress', null);
   const storedProfile = getFromStorage('saa_profile', null);
-  const { percentage: profilePct } = useProfileCompletion(storedProfile);
+  const { percentage: computedProfilePct } = useProfileCompletion(profile || dash?.profile || storedProfile);
+  const profilePct = Number(profile?.profile_completion ?? dash?.profile_completion ?? storedProfile?.profile_completion ?? computedProfilePct) || 0;
+  const savedUniversities = Number(dash?.saved_universities ?? (Array.isArray(shortlistUnis) ? shortlistUnis.length : 0)) || 0;
+  const savedScholarships = Number(dash?.saved_scholarships ?? (Array.isArray(shortlistScholarships) ? shortlistScholarships.length : 0)) || 0;
+  const roadmapProgress = Number(dash?.roadmap_progress ?? storedRoadmapProgress ?? 0) || 0;
   const loading = dashLoading || profileLoading;
 
   return (
@@ -172,8 +176,8 @@ export default function DashboardPage() {
 
           {/* Stat Cards */}
           <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-            <StatCard icon="🏛️" label="Saved Universities" value={shortlistUnis.length} trend="↑ 2 this week" bg="rgba(14,165,233,0.12)" />
-            <StatCard icon="🎓" label="Saved Scholarships" value={shortlistScholarships.length} trend="↑ 1 this week" bg="rgba(245,166,35,0.12)" />
+            <StatCard icon="🏛️" label="Saved Universities" value={savedUniversities} trend="↑ 2 this week" bg="rgba(14,165,233,0.12)" />
+            <StatCard icon="🎓" label="Saved Scholarships" value={savedScholarships} trend="↑ 1 this week" bg="rgba(245,166,35,0.12)" />
             <StatCard icon="📊" label="Roadmap Progress" value={roadmapProgress} trend="On track" bg="rgba(139,92,246,0.12)" />
             <StatCard icon="👤" label="Profile Score" value={profilePct} trend="Keep going!" bg="rgba(16,185,129,0.12)" />
           </div>
